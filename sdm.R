@@ -77,26 +77,12 @@ grassland_cover <- project(grassland_cover, target_crs)
 
 crs(bio19)
 
-#### Cropping all layers to the same extent ####
-#start with setting the vector layer of south tyrols border as extent we want to crop the other layers to
-border_southtyrol <- vect("Layer/border_southTyrol.shp")
-southtyrol_extent <- ext(border_southtyrol)   #has the right EPSG already
-
-dem_crop <- crop (dem, southtyrol_extent)
-aspect_crop <- crop(aspect, southtyrol_extent)
-slope_crop <- crop(slope, southtyrol_extent)
-bio1_crop <- crop(bio1, southtyrol_extent)
-bio2_crop <- crop(bio2, southtyrol_extent)
-bio11_crop <- crop(bio11, southtyrol_extent)
-bio12_crop <- crop(bio12, southtyrol_extent)
-bio19_crop <- crop(bio19, southtyrol_extent)
-
 #### Match resolutions of the layers ####
 #we start with downscaling the climate variables from 1km2 to 100m2
 target_res <- 100
-bio1_100m <- resample(bio1_crop, rast(res = target_res, ext = southtyrol_extent), method = "bilinear")
+bio1_100m <- resample(bio1, rast(res = target_res, ext = southtyrol_extent), method = "bilinear")
 #set this raster as reference raster all others should align to
-reference_raster <- bio1_100m # use this for the none bio rasters
+reference_raster <- bio2_100m # use this for the none bio rasters
 
 bio2_100m <- resample(bio2_crop, rast(res = target_res, ext = southtyrol_extent), method = "bilinear")
 bio11_100m <- resample(bio11_crop, rast(res = target_res, ext = southtyrol_extent), method = "bilinear")
@@ -108,7 +94,7 @@ bio19_100m <- resample(bio19_crop, rast(res = target_res, ext = southtyrol_exten
 dem_100m <- aggregate(dem_crop, fact = 40, fun = mean) #factor 40 due to grid size before is 2,5m
 dem_100m_aligned <- resample(dem_100m, reference_raster, method = "bilinear")
 
-aspect_100m <- aggregate(aspect_crop, fact = 40, fun = mean) #factor 40 due to grid size before is 2,5m
+aspect_100m <- aggregate(aspect, fact = 40, fun = mean) #factor 40 due to grid size before is 2,5m
 aspect_100m_aligned <- resample(aspect_100m, reference_raster, method = "bilinear")
 
 slope_100m <- aggregate(slope_crop, fact = 40, fun = mean) #factor 40 due to grid size before is 2,5m
@@ -121,16 +107,34 @@ forest_cover_100m_aligned <- resample(forest_cover_100m, reference_raster, metho
 grassland_cover_100m <- aggregate(grassland_cover, fact = 10, fun = mean) #factor 10 due to grid size before is 10m
 grassland_cover_100m_aligned <- resample(grassland_cover_100m, reference_raster, method = "bilinear")
 
+#### Cropping all layers to the same extent ####
+#start with setting the vector layer of south tyrols border as extent we want to crop the other layers to
+border_southtyrol <- vect("Layer/border_southTyrol_withoutNP_buffered200m.shp")
+#southtyrol_extent <- ext(border_southtyrol)   #has the right EPSG already
+
+dem_crop <- crop (dem, southtyrol_extent)
+aspect_crop_finsihed <- crop(aspect_100m_aligned, southtyrol_extent)
+slope_crop <- crop(slope, southtyrol_extent)
+bio1_crop <- crop(bio1, southtyrol_extent)
+bio2_crop_finaihed <- crop(bio2_100m, southtyrol_extent)
+bio11_crop <- crop(bio11, southtyrol_extent)
+bio12_crop <- crop(bio12, southtyrol_extent)
+bio19_crop <- crop(bio19, southtyrol_extent)
+forest_cover_crop <- crop(forest_cover_100m, southtyrol_extent)
+grassland_cover_crop <- crop(grassland_cover, southtyrol_extent)
+
+forest_cover_crop <- mask(crop(forest_cover_100m, border_southtyrol), border_southtyrol)
+
 #### Save aligned rasters ####
 writeRaster(dem_100m_aligned, "aligned_rasters/dem_100m.tif", overwrite = TRUE)
-writeRaster(aspect_100m_aligned, "aligned_rasters/aspect_100m.tif", overwrite = TRUE)
+writeRaster(aspect_crop_finsihed, "aligned_rasters/aspect_100m.tif", overwrite = TRUE)
 writeRaster(slope_100m_aligned, "aligned_rasters/slope_100m.tif", overwrite = TRUE)
 writeRaster(bio1_100m, "aligned_rasters/bio1_100m.tif", overwrite = TRUE)
-writeRaster(bio2_100m, "aligned_rasters/bio2_100m.tif", overwrite = TRUE)
+writeRaster(bio2_crop_finaihed, "aligned_rasters/bio2_100m.tif", overwrite = TRUE)
 writeRaster(bio11_100m, "aligned_rasters/bio11_100m.tif", overwrite = TRUE)
 writeRaster(bio12_100m, "aligned_rasters/bio12_100m.tif", overwrite = TRUE)
 writeRaster(bio19_100m, "aligned_rasters/bio19_100m.tif", overwrite = TRUE)
-writeRaster(forest_cover_100m_aligned, "aligned_rasters/forest_cover_100m.tif", overwrite = TRUE)
+writeRaster(forest_cover_crop, "aligned_rasters/forest_cover_100m_crop.tif", overwrite = TRUE)
 writeRaster(grassland_cover_100m_aligned, "aligned_rasters/grassland_cover_100m.tif", overwrite = TRUE)
 
 #### Read in Aligned rasters ####
