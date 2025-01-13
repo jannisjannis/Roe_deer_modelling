@@ -20,44 +20,53 @@ library(terra)
 
 
 # Filepaths for data
-roadKillFilePath = "GIS/roadKills_presence.tif"     # response variable
+roadKillFilePath = "GIS/roadKills_presence_res100.tif"     # response variable
+roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
 ## predictor variables
   # broad-leaved forest --> band 1
-BLforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0.tif"
+BLforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0_ST.tif"
   # coniferous forest --> band 2
-CforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0.tif"
+CforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0_ST.tif"
   # mixed forest --> band 313
-MixforestFilePath = "forGLM/landcover/Results/U2018_CLC2018_V2020_20u1/U2018_CLC2018_V2020_20u1/U2018_CLC2018_V2020_20u1.tif"
+MixforestFilePath = "forGLM/landcover/U2018_CLC2018_extent_ST.tif"
 transitionalLandFilePath = "forGLM/rastersized_data/smallWoodyFeatures_EPSG25832.tif"
   #pastures --> band 231
-pasturesFilePath = "forGLM/landcover/Results/U2018_CLC2018_V2020_20u1/U2018_CLC2018_V2020_20u1/U2018_CLC2018_V2020_20u1.tif"
+pasturesFilePath = "forGLM/landcover/U2018_CLC2018_extent_ST.tif"
 grasslandsFilePath = "forGLM/landcover/Results/GRA_2018_010m_03035_V1_0/GRA_2018_010m_03035_V1_0/GRA_2018_010m_03035_V1_0.tif"
-# sdmFilePath = "/forGLM/
-RwaterFilePath = "forGLM/Fliessgewaesser/DownloadService/Watercourses_line.shp"
-lakesFilePath = "forGLM/Seen/DownloadService/Lakes_polygon.shp"
-roadTypeFilePath = "forGLM/relevant_roads_raster_10by10.tif"
-humansFilePath = "forGLM/PopDensity/popDens_clippedTo_villages.shp"
+# !!!!!! sdmFilePath = "/forGLM/
+watercoursesFilePath = "variables_glm_clipped_ST_minus_NP/watercourses.tif"
+lakesFilePath = "variables_glm_clipped_ST_minus_NP/lakes.tif"
+roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/relevant_roads.tif"
+humansFilePath = "variables_glm_clipped_ST_minus_NP/human_influence.tif"
 
 # # # Load all the files # # #
-# ----- vector -----
-runningWaterVect <- vect(RwaterFilePath)
-lakesVect <- vect(lakesFilePath)
-humanInfluenceVect <- vect(humansFilePath)
-
-# ----- raster ----- # subds allows to load specific band
-roadKillsRaster <- raster(roadKillFilePath)
-broadleaveRaster <- raster(BLforestFilePath, subds = 1)
-coniferousRaster <- raster(CforestFilePath, subds = 2)
-mixedForestRaster <- raster(MixforestFilePath, subds = 313)
-transitionalLandRaster <- raster(transitionalLandFilePath)
-pasturesRaster <- raster(pasturesFilePath, subds = 231)
-grasslandsRaster <- raster(grasslandsFilePath)
-roadTypeRaster <- vect(roadTypeFilePath)
+ # subds allows to load specific band
+roadKills <- raster(roadKillFilePath)
+roadKillsCount <- raster(roadKillCountsFilePath)
+broadleave <- raster(BLforestFilePath, subds = 1)
+coniferous <- raster(CforestFilePath, subds = 2)
+mixedForest <- raster(MixforestFilePath, subds = 25)
+transitionalLand <- raster(transitionalLandFilePath)
+pastures <- raster(pasturesFilePath, subds = 18)
+grasslands <- raster(grasslandsFilePath)
+roadType <- raster(roadTypeFilePath)
+humanInfluence <- raster(humansFilePath)
+watercourses <- raster(watercoursesFilePath)
+lakes<- raster(lakesFilePath)
 #sdmRaster <- raster(sdmFilePath)
 
 # get an overview over raster properties - function crs(raster) gives 
 # coordinate reference system, function res(r) gives resolution
-print(grasslandsRaster)
+print(grasslands)
+
+# ----------------------------------------------------------------------------
+# BEFORE checking assumptions and running the GLM
+# ----------------------------------------------------------------------------
+# Make sure that...
+# a. 	all layers have the same resolution (can be done in R) --> 100m by 100m
+# b. all layers have the same spatial extent (can be done in R, except if minimum 
+#     extent is not given) --> border South Tyrol (not the one from NUTS!)
+# c. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
 
 
 
