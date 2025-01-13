@@ -5,7 +5,6 @@
 #install.packages("tidyterra")
 #install.packages("ggtext")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
-#test for carlita 2
 
 library(biomod2)
 library(readr)
@@ -109,7 +108,7 @@ grassland_cover_100m_aligned <- resample(grassland_cover_100m, reference_raster,
 
 #### Cropping all layers to the same extent ####
 #start with setting the vector layer of south tyrols border as extent we want to crop the other layers to
-border_southtyrol <- vect("Layer/border_southTyrol_withoutNP_buffered200m.shp")
+border_southtyrol <- vect("Layer/border_southTyrol_withoutNP.shp")
 #southtyrol_extent <- ext(border_southtyrol)   #has the right EPSG already
 
 dem_crop <- crop (dem, southtyrol_extent)
