@@ -5,6 +5,7 @@
 #install.packages("tidyterra")
 #install.packages("ggtext")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
+#test for carlita 2
 
 library(biomod2)
 library(readr)
