@@ -209,66 +209,123 @@ library(ggplot2) # needed for some graphs
 # Extract values and raster names
 
 roadKills_values <- values(roadKills)
-roadKills_values <- ifelse(roadKills_values == 1, "Yes", "No") #binary data
+roadKills_values <- as.factor(ifelse(roadKills_values == 1, "Yes", "No")) #binary data
 roadKillsCount_values <- values(roadKillsCount)
 broadleave_values <- values(broadleave)
-broadleave_values <- ifelse(broadleave_values == 1, "Yes", "No") #binary data
+broadleave_values <- as.factor(ifelse(broadleave_values == 1, "Yes", "No")) #binary data
 coniferous_values <- values(coniferous)
-coniferous_values <- ifelse(coniferous_values == 1, "Yes", "No") #binary data
+coniferous_values <- as.factor(ifelse(coniferous_values == 1, "Yes", "No")) #binary data
 mixedForest_values <- values(mixedForest)
-mixedForest_values <- ifelse(mixedForest_values == 1, "Yes", "No") #binary data
+mixedForest_values <- as.factor(ifelse(mixedForest_values == 1, "Yes", "No")) #binary data
 transitionalLand_values <- values(transitionalLand)
-transitionalLand_values <- ifelse(transitionalLand_values == 1, "Yes", "No") #binary data
+transitionalLand_values <- as.factor(ifelse(transitionalLand_values == 1, "Yes", "No")) #binary data
 pastures_values <- values(pastures)
-pastures_values <- ifelse(pastures_values == 1, "Yes", "No") #binary data
+pastures_values <- as.factor(ifelse(pastures_values == 1, "Yes", "No")) #binary data
 grasslands_values <- values(grasslands)
-grasslands_values <- ifelse(grasslands_values == 1, "Yes", "No") #binary data
+grasslands_values <- as.factor(ifelse(grasslands_values == 1, "Yes", "No")) #binary data
 roadType_values <- values(roadType)
 humanInfluence_values <- values(humanInfluence)
 watercourses_values <- values(watercourses)
-watercourses_values <- ifelse(watercourses_values == 1, "Yes", "No") #binary data
+watercourses_values <- as.factor(ifelse(watercourses_values == 1, "Yes", "No")) #binary data
 lakes_values <- values(lakes)
-lakes_values <- ifelse(lakes_values == 1, "Yes", "No") #binary data
+lakes_values <- as.factor(ifelse(lakes_values == 1, "Yes", "No")) #binary data
 
+# Create the factor with appropriate levels
+roadType_factor <- factor(roadType_values, 
+                          levels = c("0", "1", "2", "3", "4", "5"),
+                          labels = c("No Road", "Highway", "State Road", 
+                                     "Country Road", "Municipal Road", 
+                                     "Adress Road"))
 
-roadType_factor <- factor(roadType_values, levels = c("No Road", "Highway", "State Road", 
-                                                      "Country Road", "Municipal Road",
-                                                      "Adress Road"))
-levels(roadType_factor)
-# Replace ALL numeric entries by road type
-roadType_factor[roadType_factor == "0"] <- "No Road"
-roadType_factor[roadType_factor == "1"] <- "Highway"
-roadType_factor[roadType_factor == "2"] <- "State Road"
-roadType_factor[roadType_factor == "3"] <- "Country Road"
-roadType_factor[roadType_factor == "4"] <- "Municipal Road"
-roadType_factor[roadType_factor == "5"] <- "Adress Road"
+# Check the levels to confirm
 levels(roadType_factor)
 
-df <- data.frame(roadKills_values , roadKillsCount_values, broadleave_values,
-                 coniferous_values,mixedForest_values,transitionalLand_values,
-                 pastures_values, grasslands_values,roadType_factor, 
+# Create the data frame
+df <- data.frame(roadKills_values, roadKillsCount_values, broadleave_values,
+                 coniferous_values, mixedForest_values, transitionalLand_values,
+                 pastures_values, grasslands_values, roadType_factor, 
                  humanInfluence_values, watercourses_values, lakes_values)
-colnames(df) <- c("Road kills", "Road kills Count", "Broadleave", "Coniferous", 
-                  "Mixed Forest", "Small Woody Features", "Pastures",
-                  "Grasslands", "Road Type", "Human Influence", "Watercourses",
+
+# Assign column names
+colnames(df) <- c("Road_kills", "Road_kills_Count", "Broadleave", "Coniferous", 
+                  "Mixed_Forest", "Small_Woody_Features", "Pastures",
+                  "Grasslands", "Road_Type", "Human_Influence", "Watercourses",
                   "Lakes")
+
+# Inspect the first few rows
 head(df)
 
-df_na <- subset(df, !is.na(roadKillsCount_values))
+# Remove rows where "Road kills Count" is NA
+df_na <- subset(df, !is.na(df$Road_kills_Count))
+
+# Inspect the filtered data
 head(df_na)
 
-
-
-# Beispiel für einen Boxplot
-boxplot(roadKillsCount_values, horizontal = TRUE)
-boxplot(roadType_factor, horizontal = TRUE)
-boxplot(humanInfluence_values, horizontal = TRUE)
+# Remove rows where "Road kill Count" is 0
+df_greater0 <- subset(df_na, df_na$Road_kills_Count != 0)
 
 # Make simple boxplots
-boxplot(roadKillsCount_values ~ roadType_factor,
+par(mfrow = c(2,2))
+boxplot(Road_kills_Count ~ Road_Type,
+        data = df_greater0,
         # change axes labels
         xlab = "Road type",
         ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Broadleave,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Broadleaved Forest",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Coniferous,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Coniferous forest",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Mixed_Forest,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Mixed forest",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Small_Woody_Features,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Small Woody Features",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Pastures,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Pastures",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Grasslands,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Grasslands",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Human_Influence,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Human Influence",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Watercourses,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Watercourses",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Lakes,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Lakes",
+        ylab = "Road kill count")
+
 
 
 # # Assuming roadnetwork is already loaded as a raster
