@@ -18,8 +18,18 @@ setwd("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carl
 library(raster)
 library(terra)
 
+###############################################################################
+# Filepaths to export data
+###############################################################################
+rasterExportPath <- "Export_R/raster"
 
+######
+#############       SKIPPING OF CODE - S T A R T                    ##############                                         
+######
+
+###############################################################################
 # Filepaths for data
+###############################################################################
 roadKillFilePath = "GIS/roadKills_presence_res100.tif"     # response variable
 roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
 ## predictor variables
@@ -67,7 +77,7 @@ names(all_variables) <- c("roadKills", "roadKillsCount", "broadleave","coniferou
                           "mixedForest", "transitionalLand", "pastures", "grasslands",
                           "roadType", "humanInfluence", "watercourses", "lakes")
 
-# get an overview over raster properties - function crs(raster) gives 
+# get an overview over raster properties - function crs(raster) gives
 # coordinate reference system, function res(r) gives resolution
 print(grasslands)
 
@@ -77,24 +87,38 @@ print(grasslands)
 # Make sure that...
 # a. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
 # b. all layers have the same resolution (can be done in R) --> 100m by 100m
-# c. all layers have the same spatial extent (can be done in R, except if minimum 
+# c. all layers have the same spatial extent (can be done in R, except if minimum
 #     extent is not given) --> border South Tyrol (not the one from NUTS!)
 
 # ----------------------------------------------------------------------------
 #                               (A)  - CRS
 
-# Define the target CRS 
+# Define the target CRS
 target_crs <- "EPSG:25832"
 
-# Reproject all raster variables to the target CRS
-for (i in seq_along(all_variables)) {
-  obj <- all_variables[[i]]
-  
-  # Reproject to target CRS
-  all_variables[[i]] <- project(obj, target_crs)  # Reproject to target CRS
-  cat("Reprojected raster", i, "to the target CRS.\n")
-}
+# # Reproject all raster variables to the target CRS
+# for (i in seq_along(all_variables)) {
+#   obj <- all_variables[[i]]
+# 
+#   # Reproject to target CRS
+#   all_variables[[i]] <- project(obj, target_crs)  # Reproject to target CRS
+#   cat("Reprojected raster", i, "to the target CRS.\n")
+# }
 
+
+roadKills <- project(roadKills, target_crs)
+roadKillsCount <- project(roadKillsCount, target_crs)
+broadleave <- project(broadleave, target_crs)
+coniferous <- project(coniferous, target_crs)
+mixedForest <- project(mixedForest, target_crs)
+transitionalLand <- project(transitionalLand, target_crs)
+pastures <- project(pastures , target_crs)
+grasslands <- project(grasslands, target_crs)
+roadType <- project(roadType, target_crs)
+humanInfluence <- project(humanInfluence, target_crs)
+watercourses <- project(watercourses, target_crs)
+lakes <- project(lakes, target_crs)
+#sdm <- project(sdm, target_crs)
 
 # ----------------------------------------------------------------------------
 #                               (B)  - Resolution
@@ -104,14 +128,28 @@ target_res <- 100  # Target resolution in meters
 template_raster <- rast(roadKillFilePath)  # Copy extent and CRS from the reference raster (roadKills)
 res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
-# Loop through all rasters and resample to the target resolution
-for (i in seq_along(all_variables)) {
-  obj <- all_variables[[i]]
-  
-  # Resample to the target resolution (100 meters)
-  all_variables[[i]] <- resample(x=obj, y = template_raster, method = "near")  # 'bilinear' for continuous, 'near' for categorical
-  cat("Resampled raster", i, "to 100 meters resolution.\n")
-}
+# # Loop through all rasters and resample to the target resolution
+# for (i in seq_along(all_variables)) {
+#   obj <- all_variables[[i]]
+# 
+#   # Resample to the target resolution (100 meters)
+#   all_variables[[i]] <- resample(x=obj, y = template_raster, method = "near")  # 'bilinear' for continuous, 'near' for categorical
+#   cat("Resampled raster", i, "to 100 meters resolution.\n")
+# }
+
+roadKills <- resample(roadKills,template_raster, method = "near")
+roadKillsCount <- resample(roadKillsCount,template_raster, method = "near")
+broadleave <- resample(broadleave,template_raster, method = "near")
+coniferous <- resample(coniferous,template_raster, method = "near")
+mixedForest <- resample(mixedForest,template_raster, method = "near")
+transitionalLand <- resample(transitionalLand,template_raster, method = "near")
+pastures <- resample(pastures,template_raster, method = "near")
+grasslands <- resample(grasslands,template_raster, method = "near")
+roadType <- resample(roadType,template_raster, method = "near")
+humanInfluence <- resample(humanInfluence,template_raster, method = "near")
+watercourses <- resample(watercourses,template_raster, method = "near")
+lakes<- resample(lakes,template_raster, method = "near")
+#sdm <- resample(sdm,template_raster, method = "bilinear")
 
 
 # ----------------------------------------------------------------------------
@@ -136,45 +174,113 @@ lakes_crop <- mask(crop (lakes, ST_border), ST_border)
 #sdm_crop <- mask(crop (sdm_crop, ST_border), ST_border)
 
 # ----------------------------------------------------------------------------
-# Visualization of the data
+# save all layers and in the future use them!
 # ----------------------------------------------------------------------------
 
+writeRaster(roadKills_crop, file.path(rasterExportPath, "roadKills.tif"), overwrite = TRUE)
+writeRaster(roadKillsCount_crop, file.path(rasterExportPath, "roadKillsCount.tif"), overwrite = TRUE)
+writeRaster(broadleave_crop, file.path(rasterExportPath, "broadleave.tif"), overwrite = TRUE)
+writeRaster(coniferous_crop, file.path(rasterExportPath, "coniferous.tif"), overwrite = TRUE)
+writeRaster(mixedForest_crop, file.path(rasterExportPath, "mixedForest.tif"), overwrite = TRUE)
+writeRaster(transitionalLand_crop, file.path(rasterExportPath, "transitionalLand.tif"), overwrite = TRUE)
+writeRaster(pastures_crop, file.path(rasterExportPath, "pastures.tif"), overwrite = TRUE)
+writeRaster(grasslands_crop, file.path(rasterExportPath, "grasslands.tif"), overwrite = TRUE)
+writeRaster(roadType_crop, file.path(rasterExportPath, "roadType.tif"), overwrite = TRUE)
+writeRaster(humanInfluence_crop, file.path(rasterExportPath, "humanInfluence.tif"), overwrite = TRUE)
+writeRaster(watercourses_crop, file.path(rasterExportPath, "watercourses.tif"), overwrite = TRUE)
+writeRaster(lakes_crop, file.path(rasterExportPath, "lakes.tif"), overwrite = TRUE)
+#writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
+
+######
+#############       SKIPPING OF CODE - E N D                    ##############
+######
+
+# # # Load all the files # # #
+roadKills <- rast(file.path(rasterExportPath, "roadKills.tif"))
+roadKillsCount <- rast(file.path(rasterExportPath, "roadKillsCount.tif"))
+broadleave <- rast(file.path(rasterExportPath, "broadleave.tif"))
+coniferous <- rast(file.path(rasterExportPath, "coniferous.tif"))
+mixedForest <- rast(file.path(rasterExportPath, "mixedForest.tif"))
+transitionalLand <- rast(file.path(rasterExportPath, "transitionalLand.tif"))
+pastures <- rast(file.path(rasterExportPath, "pastures.tif"))
+grasslands <- rast(file.path(rasterExportPath, "grasslands.tif"))
+roadType <- rast(file.path(rasterExportPath, "mixedForest.tif"))
+humanInfluence <- rast(file.path(rasterExportPath, "roadType.tif"))
+watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
+lakes <- rast(file.path(rasterExportPath, "lakes_crop.tif"))
+#sdm <- rast(rasterExportPath, "sdm.tif")
+
+
+# ----------------------------------------------------------------------------
+# Visualization of the data
+# ----------------------------------------------------------------------------
 library(ggplot2) # needed for some graphs
+
+##############################################################################
+# Description of the data:
+# most variables are binary, the response variable (road kill counts) is poisson
+# the distribution of human influence is XXXXXX,
+# the distribution of road type is XXXXX
 
 # ----------------- (1) Extract values from rasters
 # Extract values and raster names
 
-roadKills_values <- values(roadKills_crop)
-roadKills_binary <- ifelse(roadKills_values == 1, "Yes", "No") #binary data
-roadKillsCount_values <- values(roadKillsCount_crop)
-broadleave_values <- values(broadleave_crop)
-broadleave_binary <- ifelse(broadleave_values == 1, "Yes", "No") #binary data
-coniferous_values <- values(coniferous_crop)
-coniferous_binary <- ifelse(coniferous_values == 1, "Yes", "No") #binary data
-mixedForest_values <- values(mixedForest_crop)
-mixedForest_binary <- ifelse(mixedForest_values == 1, "Yes", "No") #binary data
-transitionalLand_values <- values(transitionalLand_crop)
-transitionalLand_binary <- ifelse(transitionalLand_values == 1, "Yes", "No") #binary data
-pastures_values <- values(pastures_crop)
-pastures_binary <- ifelse(pastures_values == 1, "Yes", "No") #binary data
-grasslands_values <- values(grasslands_crop)
-grasslands_binary <- ifelse(grasslands_values == 1, "Yes", "No") #binary data
-roadType_values <- values(roadType_crop)
-humanInfluence_values <- values(humanInfluence_crop)
-watercourses_values <- values(watercourses_crop)
-watercourses_binary <- ifelse(watercourses_values == 1, "Yes", "No") #binary data
-lakes_values <- values(lakes_crop)
-lakes_binary <- ifelse(lakes_values == 1, "Yes", "No") #binary data
+roadKills_values <- values(roadKills)
+roadKills_values <- ifelse(roadKills_values == 1, "Yes", "No") #binary data
+roadKillsCount_values <- values(roadKillsCount)
+broadleave_values <- values(broadleave)
+broadleave_values <- ifelse(broadleave_values == 1, "Yes", "No") #binary data
+coniferous_values <- values(coniferous)
+coniferous_values <- ifelse(coniferous_values == 1, "Yes", "No") #binary data
+mixedForest_values <- values(mixedForest)
+mixedForest_values <- ifelse(mixedForest_values == 1, "Yes", "No") #binary data
+transitionalLand_values <- values(transitionalLand)
+transitionalLand_values <- ifelse(transitionalLand_values == 1, "Yes", "No") #binary data
+pastures_values <- values(pastures)
+pastures_values <- ifelse(pastures_values == 1, "Yes", "No") #binary data
+grasslands_values <- values(grasslands)
+grasslands_values <- ifelse(grasslands_values == 1, "Yes", "No") #binary data
+roadType_values <- values(roadType)
+humanInfluence_values <- values(humanInfluence)
+watercourses_values <- values(watercourses)
+watercourses_values <- ifelse(watercourses_values == 1, "Yes", "No") #binary data
+lakes_values <- values(lakes)
+lakes_values <- ifelse(lakes_values == 1, "Yes", "No") #binary data
 
-df <- data.frame(roadKills_binary , roadKillsCount_values, broadleave_binary,
-                 coniferous_binary,mixedForest_binary,transitionalLand_binary,
-                 transitionalLand_binary,pastures_binary, grasslands_binary,
-                 roadType_values, humanInfluence_values, watercourses_binary,
-                 lakes_binary)
+
+roadType_factor <- factor(roadType_values, levels = c("No Road", "Highway", "State Road", 
+                                                      "Country Road", "Municipal Road",
+                                                      "Adress Road"))
+levels(roadType_factor)
+# Replace ALL numeric entries by road type
+roadType_factor[roadType_factor == "0"] <- "No Road"
+roadType_factor[roadType_factor == "1"] <- "Highway"
+roadType_factor[roadType_factor == "2"] <- "State Road"
+roadType_factor[roadType_factor == "3"] <- "Country Road"
+roadType_factor[roadType_factor == "4"] <- "Municipal Road"
+roadType_factor[roadType_factor == "5"] <- "Adress Road"
+levels(roadType_factor)
+
+df <- data.frame(roadKills_values , roadKillsCount_values, broadleave_values,
+                 coniferous_values,mixedForest_values,transitionalLand_values,
+                 transitionalLand_values,pastures_values, grasslands_values,
+                 roadType_factor, humanInfluence_values, watercourses_values,
+                 lakes_values)
 head(df)
+
+
 
 # Beispiel für einen Boxplot
 boxplot(roadKillsCount_values, horizontal = TRUE)
+boxplot(roadType_factor, horizontal = TRUE)
+boxplot(humanInfluence_values, horizontal = TRUE)
+
+# Make simple boxplots
+boxplot(roadKillsCount_values ~ roadType_factor,
+        # change axes labels
+        xlab = "Road type",
+        ylab = "Road kill count")
+
 
 # # Assuming roadnetwork is already loaded as a raster
 # # Convert roadnetwork raster to "yes" or "no"
@@ -213,4 +319,5 @@ ggplot(filtered_df, aes(x = factor(roadType), y = roadKills_count_raster_res100,
 # ----------------------------------------------------------------------------
 # Activate the libraries needed for this 
 library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
+
 
