@@ -24,21 +24,21 @@ roadKillFilePath = "GIS/roadKills_presence_res100.tif"     # response variable
 roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
 ## predictor variables
   # broad-leaved forest --> band 1
-BLforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0_ST.tif"
+BLforestFilePath = "variables_glm_clipped_ST_minus_NP/forest.tif"
   # coniferous forest --> band 2
-CforestFilePath = "forGLM/landcover/Results/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0/FTY_2018_010m_03035_V1_0_ST.tif"
+CforestFilePath = "variables_glm_clipped_ST_minus_NP/forest.tif"
   # mixed forest --> band 313
-MixforestFilePath = "forGLM/landcover/U2018_CLC2018_extent_ST.tif"
+MixforestFilePath = "variables_glm_clipped_ST_minus_NP/landuse.tif"
 transitionalLandFilePath = "forGLM/rastersized_data/smallWoodyFeatures_EPSG25832.tif"
   #pastures --> band 231
-pasturesFilePath = "forGLM/landcover/U2018_CLC2018_extent_ST.tif"
-grasslandsFilePath = "forGLM/landcover/Results/GRA_2018_010m_03035_V1_0/GRA_2018_010m_03035_V1_0/GRA_2018_010m_03035_V1_0.tif"
+pasturesFilePath = "variables_glm_clipped_ST_minus_NP/landuse.tif"
+grasslandsFilePath = "variables_glm_clipped_ST_minus_NP/grassland_cover_100m.tif"
 # !!!!!! sdmFilePath = "/forGLM/
 watercoursesFilePath = "variables_glm_clipped_ST_minus_NP/watercourses.tif"
 lakesFilePath = "variables_glm_clipped_ST_minus_NP/lakes.tif"
-roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/relevant_roads.tif"
+roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
 humansFilePath = "variables_glm_clipped_ST_minus_NP/human_influence.tif"
-# !!!!!!!! roadnetworkFilePath =
+
 
 ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
 
@@ -59,10 +59,13 @@ watercourses <- rast(watercoursesFilePath)
 lakes<- rast(lakesFilePath)
 #sdm <- rast(sdmFilePath)
 
-# list of all variables             !!!!!!! ad sdm !!!!!!!
+# list of all variables             !!!!!!! add sdm !!!!!!!
 all_variables <- list(roadKills, roadKillsCount, broadleave, coniferous,
                       mixedForest, transitionalLand, pastures, grasslands,
                       roadType, humanInfluence, watercourses, lakes)
+names(all_variables) <- c("roadKills", "roadKillsCount", "broadleave","coniferous",
+                          "mixedForest", "transitionalLand", "pastures", "grasslands",
+                          "roadType", "humanInfluence", "watercourses", "lakes")
 
 # get an overview over raster properties - function crs(raster) gives 
 # coordinate reference system, function res(r) gives resolution
@@ -120,14 +123,13 @@ crs(ST_border) <- target_crs
 
 roadKills_crop <- mask(crop (roadKills, ST_border), ST_border)
 roadKillsCount_crop <- mask(crop (roadKillsCount, ST_border), ST_border)
-#broadleave_crop <- mask(crop (broadleave, ST_border), ST_border)
-#coniferous_crop <- mask(crop (coniferous, ST_border), ST_border)
-#mixedForest_crop <- mask(crop (mixedForest, ST_border), ST_border)
+broadleave_crop <- mask(crop (broadleave, ST_border), ST_border)
+coniferous_crop <- mask(crop (coniferous, ST_border), ST_border)
+mixedForest_crop <- mask(crop (mixedForest, ST_border), ST_border)
 transitionalLand_crop <- mask(crop (transitionalLand, ST_border), ST_border)
-#pastures_crop <- mask(crop (pastures, ST_border), ST_border)
-#grasslands_crop <- mask(crop (grasslands, ST_border), ST_border)
+pastures_crop <- mask(crop (pastures, ST_border), ST_border)
+grasslands_crop <- mask(crop (grasslands, ST_border), ST_border)
 roadType_crop <- mask(crop (roadType, ST_border), ST_border)
-#roadNetwork_crop <- mask(crop (roadNetwork, ST_border), ST_border)
 humanInfluence_crop <- mask(crop (humanInfluence, ST_border), ST_border)
 watercourses_crop <- mask(crop (watercourses, ST_border), ST_border)
 lakes_crop <- mask(crop (lakes, ST_border), ST_border)
@@ -137,33 +139,78 @@ lakes_crop <- mask(crop (lakes, ST_border), ST_border)
 # Visualization of the data
 # ----------------------------------------------------------------------------
 
-# Activate the libraries needed for this 
-library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
 library(ggplot2) # needed for some graphs
 
-# Assuming roadnetwork is already loaded as a raster
-# Convert roadnetwork raster to "yes" or "no"
-roadTypes_values <- getValues(roadType_crop)
-roadTypesfactor <- ifelse(roadTypes_values == 1, "Yes", "No")
+# ----------------- (1) Extract values from rasters
+# Extract values and raster names
 
-roadKills_values <- getValues(roadKills)
-roadKills_factor <- ifelse(roadKills_values == 1, "Yes", "No")
+roadKills_values <- values(roadKills_crop)
+roadKills_binary <- ifelse(roadKills_values == 1, "Yes", "No") #binary data
+roadKillsCount_values <- values(roadKillsCount_crop)
+broadleave_values <- values(broadleave_crop)
+broadleave_binary <- ifelse(broadleave_values == 1, "Yes", "No") #binary data
+coniferous_values <- values(coniferous_crop)
+coniferous_binary <- ifelse(coniferous_values == 1, "Yes", "No") #binary data
+mixedForest_values <- values(mixedForest_crop)
+mixedForest_binary <- ifelse(mixedForest_values == 1, "Yes", "No") #binary data
+transitionalLand_values <- values(transitionalLand_crop)
+transitionalLand_binary <- ifelse(transitionalLand_values == 1, "Yes", "No") #binary data
+pastures_values <- values(pastures_crop)
+pastures_binary <- ifelse(pastures_values == 1, "Yes", "No") #binary data
+grasslands_values <- values(grasslands_crop)
+grasslands_binary <- ifelse(grasslands_values == 1, "Yes", "No") #binary data
+roadType_values <- values(roadType_crop)
+humanInfluence_values <- values(humanInfluence_crop)
+watercourses_values <- values(watercourses_crop)
+watercourses_binary <- ifelse(watercourses_values == 1, "Yes", "No") #binary data
+lakes_values <- values(lakes_crop)
+lakes_binary <- ifelse(lakes_values == 1, "Yes", "No") #binary data
 
-# Combine both datasets into a data frame
-df <- data.frame(road = roadnetwork_factor, roadkill = roadkill_factor)
-
-# Ensure that the number of roadkill and road network values match
-df <- na.omit(df)  # Remove any NA values
-
-# Check the resulting data frame
+df <- data.frame(roadKills_binary , roadKillsCount_values, broadleave_binary,
+                 coniferous_binary,mixedForest_binary,transitionalLand_binary,
+                 transitionalLand_binary,pastures_binary, grasslands_binary,
+                 roadType_values, humanInfluence_values, watercourses_binary,
+                 lakes_binary)
 head(df)
 
-# Plot a boxplot comparing road presence and roadkill occurrence
-ggplot(df, aes(x = roadnetwork_factor, y = roadkill_factor, fill = roadnetwork_factor)) +
+# Beispiel für einen Boxplot
+boxplot(roadKillsCount_values, horizontal = TRUE)
+
+# # Assuming roadnetwork is already loaded as a raster
+# # Convert roadnetwork raster to "yes" or "no"
+# roadTypes_values <- values(roadType_crop)
+# #roadTypes_factor <- ifelse(roadTypes_values == 1, "Yes", "No")
+# 
+# roadKills_values <- values(roadKillsCount_crop)
+# #roadKills_factor <- ifelse(roadKills_values == 1, "Yes", "No")
+# 
+# # Combine both datasets into a data frame
+# df <- data.frame(road = roadTypes_values, roadkill = roadKills_values)
+# 
+# # Ensure that the number of roadkill and road network values match
+# df <- na.omit(df)  # Remove any NA values
+# 
+# # Check the resulting data frame
+# head(df)
+# 
+# 
+# # Filter out values equal to 0
+# filtered_df <- df[df$roadKills_count_raster_res100 > 0, ]
+# head(filtered_df)
+
+# Beispiel für einen Boxplot
+boxplot(filtered_df$roadKills_count_raster_res100, horizontal = TRUE)
+
+ggplot(filtered_df, aes(x = factor(roadType), y = roadKills_count_raster_res100, fill = factor(roadType))) +
   geom_boxplot() +
-  labs(title = "Road Network vs. Roadkill Occurrence",
-       x = "Road Presence",
+  labs(title = "Road Presence (0-8 Scale) vs. Roadkill Occurrence",
+       x = "Road Presence (0-8)",
        y = "Roadkill Occurrence") +
-  theme_minimal() +
-  scale_y_discrete(labels = c("No", "Yes"))
+  theme_minimal()
+
+# ----------------------------------------------------------------------------
+#                                   glm
+# ----------------------------------------------------------------------------
+# Activate the libraries needed for this 
+library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
 
