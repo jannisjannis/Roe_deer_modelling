@@ -38,6 +38,7 @@ watercoursesFilePath = "variables_glm_clipped_ST_minus_NP/watercourses.tif"
 lakesFilePath = "variables_glm_clipped_ST_minus_NP/lakes.tif"
 roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/relevant_roads.tif"
 humansFilePath = "variables_glm_clipped_ST_minus_NP/human_influence.tif"
+# !!!!!!!! roadnetworkFilePath =
 
 ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
 
@@ -52,10 +53,11 @@ transitionalLand <- rast(transitionalLandFilePath)
 pastures <- rast(pasturesFilePath, subds = 18)
 grasslands <- rast(grasslandsFilePath)
 roadType <- rast(roadTypeFilePath)
+#roadNetwork <- rast(roadTypeFilePath)
 humanInfluence <- rast(humansFilePath)
 watercourses <- rast(watercoursesFilePath)
 lakes<- rast(lakesFilePath)
-#sdmRaster <- raster(sdmFilePath)
+#sdm <- rast(sdmFilePath)
 
 # list of all variables             !!!!!!! ad sdm !!!!!!!
 all_variables <- list(roadKills, roadKillsCount, broadleave, coniferous,
@@ -96,13 +98,15 @@ for (i in seq_along(all_variables)) {
 
 # Define the target resolution (100 meters)
 target_res <- 100  # Target resolution in meters
+template_raster <- rast(roadKillFilePath)  # Copy extent and CRS from the reference raster (roadKills)
+res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
 # Loop through all rasters and resample to the target resolution
 for (i in seq_along(all_variables)) {
   obj <- all_variables[[i]]
   
   # Resample to the target resolution (100 meters)
-  all_variables[[i]] <- resample(obj, res = target_res, method = "near")  # 'bilinear' for continuous, 'near' for categorical
+  all_variables[[i]] <- resample(x=obj, y = template_raster, method = "near")  # 'bilinear' for continuous, 'near' for categorical
   cat("Resampled raster", i, "to 100 meters resolution.\n")
 }
 
@@ -112,28 +116,54 @@ for (i in seq_along(all_variables)) {
 
 #start with setting the vector layer of south tyrols border as extent we want to crop the other layers to
 ST_border <- vect(ST_borderFilePath)
-ST_border <- ST_border(target_crs)
+crs(ST_border) <- target_crs
 
-# Loop through all rasters and apply crop and mask
-for (i in seq_along(all_variables)) {
-  # Get the name and raster of the current object
-  var_name <- names(all_variables)[i]
-  obj <- all_variables[[i]]
-  
-  # Crop the raster to the boundary of South Tyrol
-  cropped_raster <- crop(obj, ST_border)
-  
-  # Mask the cropped raster to keep only values within South Tyrol
-  masked_raster <- mask(cropped_raster, ST_border)
-  
-  # Dynamically create a new variable name and assign the processed raster to it
-  assign(paste0(var_name, "_crop"), masked_raster)
-  
-  # Print a message to indicate the process is done for the current raster
-  cat("Processed raster", var_name, "to create", paste0(var_name, "_crop"), "\n")
-}
+roadKills_crop <- mask(crop (roadKills, ST_border), ST_border)
+roadKillsCount_crop <- mask(crop (roadKillsCount, ST_border), ST_border)
+#broadleave_crop <- mask(crop (broadleave, ST_border), ST_border)
+#coniferous_crop <- mask(crop (coniferous, ST_border), ST_border)
+#mixedForest_crop <- mask(crop (mixedForest, ST_border), ST_border)
+transitionalLand_crop <- mask(crop (transitionalLand, ST_border), ST_border)
+#pastures_crop <- mask(crop (pastures, ST_border), ST_border)
+#grasslands_crop <- mask(crop (grasslands, ST_border), ST_border)
+roadType_crop <- mask(crop (roadType, ST_border), ST_border)
+#roadNetwork_crop <- mask(crop (roadNetwork, ST_border), ST_border)
+humanInfluence_crop <- mask(crop (humanInfluence, ST_border), ST_border)
+watercourses_crop <- mask(crop (watercourses, ST_border), ST_border)
+lakes_crop <- mask(crop (lakes, ST_border), ST_border)
+#sdm_crop <- mask(crop (sdm_crop, ST_border), ST_border)
 
 # ----------------------------------------------------------------------------
-# GLM set up
+# Visualization of the data
 # ----------------------------------------------------------------------------
+
+# Activate the libraries needed for this 
+library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
+library(ggplot2) # needed for some graphs
+
+# Assuming roadnetwork is already loaded as a raster
+# Convert roadnetwork raster to "yes" or "no"
+roadTypes_values <- getValues(roadType_crop)
+roadTypesfactor <- ifelse(roadTypes_values == 1, "Yes", "No")
+
+roadKills_values <- getValues(roadKills)
+roadKills_factor <- ifelse(roadKills_values == 1, "Yes", "No")
+
+# Combine both datasets into a data frame
+df <- data.frame(road = roadnetwork_factor, roadkill = roadkill_factor)
+
+# Ensure that the number of roadkill and road network values match
+df <- na.omit(df)  # Remove any NA values
+
+# Check the resulting data frame
+head(df)
+
+# Plot a boxplot comparing road presence and roadkill occurrence
+ggplot(df, aes(x = roadnetwork_factor, y = roadkill_factor, fill = roadnetwork_factor)) +
+  geom_boxplot() +
+  labs(title = "Road Network vs. Roadkill Occurrence",
+       x = "Road Presence",
+       y = "Roadkill Occurrence") +
+  theme_minimal() +
+  scale_y_discrete(labels = c("No", "Yes"))
 
