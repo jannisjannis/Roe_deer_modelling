@@ -4,6 +4,7 @@
 #install.packages("spThin")
 #install.packages("tidyterra")
 #install.packages("ggtext")
+#install.packages("rio")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
@@ -14,6 +15,7 @@ library(spThin)
 library(ggplot2)
 library(tidyterra)
 library(ggtext)
+library(rio) 
 
 #skip to line 121 from here
 
@@ -129,42 +131,58 @@ bio19 <-rast("aligned_rasters/bio19_100m.tif")
 forest_cover <- rast("aligned_rasters/forest_cover_100m.tif")
 grassland_cover <- rast("aligned_rasters/grassland_cover_100m.tif")
 
-env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover) #grassland_cover)
+env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover)
+
+#PRÜFEN OB DIE VARIAblen abhängig voneinander sind, dann braucht man sie nciht?!
 
 #### read and thin presence data ####
-presence_data <- read.csv("Rehwilddaten_punktverortet.csv", header = TRUE, sep = ",")
+presence_data <- import("Rehe_Unfall_und_Abschuss.csv", header = TRUE)
+
+colnames(presence_data)[colnames(presence_data) == "GPS (lat)"] <- "lat"
+colnames(presence_data)[colnames(presence_data) == "GPS (lng)"] <- "lon"
+colnames(presence_data)
 
 #change from character to numeric the coordinates
-presence_data$lat <- as.numeric(gsub(",", ".", presence_data$GPS..lat.))
-presence_data$lon <- as.numeric(gsub(",", ".", presence_data$GPS..lng.))
+presence_data$lat <- as.numeric(gsub(",", ".", presence_data$lat))
+presence_data$lon <- as.numeric(gsub(",", ".", presence_data$lon))
 
-presence_data_biomod <- presence_data[, c("lon", "lat")]
+#removing Nas
+presence_data <- presence_data %>%
+  filter(!is.na(lat), !is.na(lon))
+
+#Change from old WGS 84 to EPSG:35832
+#create  Vector from the old dataframe
+presence_vect <- vect(presence_data, geom = c("lon", "lat"), crs = "EPSG:4326")  
+presence_vect_25832 <- project(presence_vect, "EPSG:25832") # Transform to EPSG:25832
+coords <- crds(presence_vect_25832) # extract transformed coordinates
+# Add the transformed coordinates back to the data frame
+presence_data$X_25832 <- coords[, 1]  # X coordinate
+presence_data$y_25832 <- coords[, 2]  # Y coordinate
+
+#Remove all the points that are outside our southtyrol boundary
+border_southtyrol <- vect("Layer/border_southTyrol_withoutNP.shp")
+presence_vect_25832 <- vect(presence_data, geom = c("X_25832", "y_25832"), crs = "EPSG:25832")  
+presence_25832_within_southtyrol <- presence_vect_25832[border_southtyrol, ]
+#crs(presence_25832_within_southtyrol)
+clipped_data <- as.data.frame(presence_25832_within_southtyrol)
+#add new coords back to the dataframe
+# Ensure the new coordinates are included in the data frame
+clipped_data$X_25832 <- crds(presence_25832_within_southtyrol)[, 1]  # X coordinate (EPSG:25832)
+clipped_data$y_25832 <- crds(presence_25832_within_southtyrol)[, 2]  # Y coordinate (EPSG:25832)
+export(clipped_data, "Roedeer_within_ST_25832.csv")
+
+#create table for biomod2 with just x,y coordinates, the presence indicator and the species name
+presence_data_biomod <- clipped_data[, c("y_25832", "X_25832")]
 presence_data_biomod$presence <- 1
 presence_data_biomod$species <- "Roe_deer"
+colnames(presence_data_biomod)[colnames(presence_data_biomod) == "y_25832"] <- "y"
+colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "x"
 
-colnames(presence_data_biomod)[colnames(presence_data_biomod) == "lon"] <- "x"
-colnames(presence_data_biomod)[colnames(presence_data_biomod) == "lat"] <- "y"
-
-#Thin Dataset down from the 46.600 occurences
-# Define the extent based on the range of your presence data
-xmin <- min(presence_data_biomod$x)
-xmax <- max(presence_data_biomod$x)
-ymin <- min(presence_data_biomod$y)
-ymax <- max(presence_data_biomod$y)
-extent_obj <- ext(xmin, xmax, ymin, ymax)
-
-# Create a raster grid at the desired resolution
-r <- rast(extent_obj, resolution = 0.01)  # 0.01 degrees (~1 km)
-
-coords <- as.matrix(presence_data_biomod[, c("x", "y")])
-grid_cells <- cellFromXY(r, coords)
-
-# Select unique cells and corresponding points
-unique_cells <- unique(grid_cells)
-occurence_data_thinned <- presence_data_biomod[match(unique_cells, grid_cells), ]
-
-#save thinned dataframe
-write.csv(occurence_data_thinned, "thinned_occurence_data.csv", row.names = FALSE)
+#Thin Dataset down from the 52.900 occurences
+r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
+r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
+unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
+writeVector(unique_points, "thinned_occurence_data_1km.shp", overwrite = TRUE)
 
 #### Format data and generate pseudo-absences ####
 Roedeer_data <- BIOMOD_FormatingData(
