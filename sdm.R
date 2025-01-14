@@ -4,7 +4,7 @@
 #install.packages("spThin")
 #install.packages("tidyterra")
 #install.packages("ggtext")
-install.packages("rio")
+#install.packages("rio")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
