@@ -241,21 +241,38 @@ plot(myBiomodData_r)
 #print(cv.r.r)
 #plot(myBiomodData.r, calib.lines = cv.r.r, plot.type = 'raster')
 
-#Modelling
-biooptiona = BIOMOD.options.default()
+#### Modelling ####
 biomod_model <- BIOMOD_Modeling(
-  data = myBiomodData_r,
-  models = "GLM",
-  model.options = BIOMOD_Modeling   # Select algorithms,  # Use default options or customize
-  NbRunEval = 5,                             # Number of runs for evaluation
-  DataSplit = 70,                             # 70% for training, 30% for validation
-  VarImport = 3,                              # Variable importance calculation
-  models.eval.meth = c("TSS", "ROC"),         # Evaluation metrics
-  do.full.models = TRUE
+  bm.format = myBiomodData_r,
+  modeling.id = "Example",
+  models = c('RF', 'GLM'),
+  CV.strategy = 'random',
+  CV.nb.rep = 2,
+  CV.perc = 0.8,
+  OPT.strategy = 'bigboss',
+  metric.eval = c('TSS','ROC'),
+  var.import = 2,
+  seed.val = 42)
+
+biomod_model_scores <- get_evaluations(biomod_model)
+dim(biomod_model_scores)
+dimnames(biomod_model_scores) 
+
+biomod_model_variable_importance <- get_variables_importance(biomod_model)
+bm_PlotEvalBoxplot(bm.out = biomod_model, group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model, group.by = c('expl.var', 'algo', 'run'))
+#looks like bio11 and forest cover are the best predictors
+
+biomod_projection <- BIOMOD_Projection(
+  bm.mod = biomod_model,
+  new.env = env_stack,        # Your environmental variable stack
+  proj.name = "species_projection",
+  selected.models = 'RF',    # You can specify models, e.g., RF or GLM
+  binary.meth = "TSS",        # Use a binary method based on TSS or ROC
+  compress = FALSE,
+  clamping.mask = FALSE,
+  output.format = ".img"      # You can choose GeoTIFF or other formats
 )
-print(biomod_model)
-#myModels <- c('GLM', 'RF', 'XGBOOST')
-#opt.b.f <- bm_ModelingOptions(data.type = 'binary',
-                              #models = myModels,
-                             # strategy = 'bigboss',
-                              #bm.format = myBiomodData.r)
+    
+proj_files <- get_predictions(biomod_projection)
+writeRaster(proj_files[[1]], filename = "species_distribution_RF.tif", overwrite = TRUE)
