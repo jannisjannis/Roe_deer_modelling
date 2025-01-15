@@ -58,46 +58,28 @@ rasterExportPath <- "Export_R/raster"
 # roadKills <- rast(roadKillFilePath)
 # roadKillsCount <- rast(roadKillCountsFilePath)
 # 
+# 
 # broadleave_unmasked <- rast(BLforestFilePath)
-# mask_layer_broadleave <- broadleave_unmasked == 1
-# broadleave <- mask(broadleave_unmasked, mask_layer_broadleave)
-# # broadleave <- rast(BLforestFilePath, subds = 1)
+# broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
 # 
 # coniferous_unmasked <- rast(CforestFilePath)
-# mask_layer_coniferous <- coniferous_unmasked == 2
-# coniferous <- mask(coniferous_unmasked, mask_layer_coniferous)
-# # coniferous <- rast(CforestFilePath, subds = 2)
+# coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
 # 
 # mixedForest_unmasked <- rast(MixforestFilePath)
-# mask_layer_mixedForest <- mixedForest_unmasked == 25
-# mixedForest <- mask(mixedForest_unmasked, mask_layer_mixedForest)
-# # mixedForest <- rast(MixforestFilePath, subds = 25)
+# mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 25, x, 0))
 # 
-# transitionalLand <- rast(transitionalLandFilePath)
+# transitionalLand_unmasked<- rast(transitionalLandFilePath)
+# transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
 # 
 # pastures_unmasked <- rast(pasturesFilePath)
-# mask_layer_pasture <- pastures_unmasked == 18
-# pastures <- mask(pastures_unmasked, mask_layer_pasture)
+# pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
 # 
 # grasslands <- rast(grasslandsFilePath)
 # roadType <- rast(roadTypeFilePath)
-# #roadNetwork <- rast(roadTypeFilePath)
 # humanInfluence <- rast(humansFilePath)
 # watercourses <- rast(watercoursesFilePath)
 # lakes<- rast(lakesFilePath)
 # #sdm <- rast(sdmFilePath)
-# 
-# # list of all variables             !!!!!!! add sdm !!!!!!!
-# all_variables <- list(roadKills, roadKillsCount, broadleave, coniferous,
-#                       mixedForest, transitionalLand, pastures, grasslands,
-#                       roadType, humanInfluence, watercourses, lakes)
-# names(all_variables) <- c("roadKills", "roadKillsCount", "broadleave","coniferous",
-#                           "mixedForest", "transitionalLand", "pastures", "grasslands",
-#                           "roadType", "humanInfluence", "watercourses", "lakes")
-# 
-# # get an overview over raster properties - function crs(raster) gives
-# # coordinate reference system, function res(r) gives resolution
-# print(grasslands)
 # 
 # # ----------------------------------------------------------------------------
 # # BEFORE checking assumptions and running the GLM
@@ -206,9 +188,9 @@ transitionalLand <- rast(file.path(rasterExportPath, "transitionalLand.tif"))
 pastures <- rast(file.path(rasterExportPath, "pastures.tif"))
 grasslands <- rast(file.path(rasterExportPath, "grasslands.tif"))
 roadType <- rast(file.path(rasterExportPath, "roadType.tif"))
-humanInfluence <- rast(file.path(rasterExportPath, "roadType.tif"))
-watercourses <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
-lakes <- rast(file.path(rasterExportPath, "lakes_crop.tif"))
+humanInfluence <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
+watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
+lakes <- rast(file.path(rasterExportPath, "lakes.tif"))
 #sdm <- rast(rasterExportPath, "sdm.tif")
 
 
@@ -228,17 +210,17 @@ library(ggplot2) # needed for some graphs
 
 roadKills_values <- values(roadKills)
 roadKills_values <- as.factor(ifelse(roadKills_values == 1, "Yes", "No")) #binary data
-roadKillsCount_values <- values(roadKillsCount)
+roadKillsCount_values <- as.integer(values(roadKillsCount))
 broadleave_values <- values(broadleave)
 broadleave_values <- as.factor(ifelse(broadleave_values == 1, "Yes", "No")) #binary data
 coniferous_values <- values(coniferous)
-coniferous_values <- as.factor(ifelse(coniferous_values == 1, "Yes", "No")) #binary data
+coniferous_values <- as.factor(ifelse(coniferous_values == 2, "Yes", "No")) #binary data
 mixedForest_values <- values(mixedForest)
-mixedForest_values <- as.factor(ifelse(mixedForest_values == 1, "Yes", "No")) #binary data
+mixedForest_values <- as.factor(ifelse(mixedForest_values == 25, "Yes", "No")) #binary data
 transitionalLand_values <- values(transitionalLand)
 transitionalLand_values <- as.factor(ifelse(transitionalLand_values == 1, "Yes", "No")) #binary data
 pastures_values <- values(pastures)
-pastures_values <- as.factor(ifelse(pastures_values == 1, "Yes", "No")) #binary data
+pastures_values <- as.factor(ifelse(pastures_values == 18, "Yes", "No")) #binary data
 grasslands_values <- values(grasslands)
 grasslands_values <- as.factor(ifelse(grasslands_values == 1, "Yes", "No")) #binary data
 roadType_values <- values(roadType)
@@ -282,7 +264,9 @@ head(df_na)
 # Remove rows where "Road kill Count" is 0
 df_greater0 <- subset(df_na, df_na$Road_kills_Count != 0)
 
-# Make simple boxplots
+# ------------------------- Make simple plots ----------------------------------
+####                Boxplots for binary/factorial variables                 ####
+
 par(mfrow = c(2,2))
 boxplot(Road_kills_Count ~ Road_Type,
         data = df_greater0,
@@ -326,12 +310,6 @@ boxplot(Road_kills_Count ~ Grasslands,
         xlab = "Grasslands",
         ylab = "Road kill count")
 
-boxplot(Road_kills_Count ~ Human_Influence,
-        data = df_greater0,
-        # change axes labels
-        xlab = "Human Influence",
-        ylab = "Road kill count")
-
 boxplot(Road_kills_Count ~ Watercourses,
         data = df_greater0,
         # change axes labels
@@ -344,11 +322,57 @@ boxplot(Road_kills_Count ~ Lakes,
         xlab = "Lakes",
         ylab = "Road kill count")
 
+# all factorial: Broadleave + Coniferous + Mixed_Forest + Small_Woody_Features + Pastures + Grasslands + Watercourses + Lakes
+
+
+####                  Histogram for numerical variable                     ####
+
+df_filtered_humans <- df_greater0[df_greater0$Human_Influence != 0& df_greater0$Human_Influence <= 1000, ]
+hist(df_filtered_humans$Human_Influence,
+     main = "Histogram of Human Influence (Values > 0 and < 1000)",
+     xlab = "Human Influence",
+     col = "lightblue")
+
+# COMMENT: quite a lot of data logically at 0, therefore filtered out. 
+# Plus an outlier: Bolzano with extremely high population density --> also filtered out
+
+# ----------------------------------------------------------------------------
+#                              Check assumptions
+# ----------------------------------------------------------------------------
+# Activate the libraries needed for this 
+library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
+
+# ----------------- (A) - Independence of predictors ---------------------------
+# To find out: check by pairwise "correlations" among predictor values
+
+# To obtain model validation plots, We first need to calculate the glm
+# ... WITHOUT checking its statistical results!
+
+
+# First model option without interaction
+mod1.glm <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                  Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                  Lakes + Human_Influence + Road_Type, 
+                data = df_na, 
+                family = "poisson")
+
+# the variance inflation factor VIF
+# ... offers an easy alternative way to check for predictor independence.
+# Without further explanation: Kick out predictors that have a value > 5 in the following list:
+# ... They are too heavily correlated with other predictors.
+vif(mod1.glm) # all looks good --> Predictors are independent
+
+# model validation: residual plots only partially informative 
+# ...many road kill counts are 0 or close to 0
+par(mfrow = c(2,2))
+plot(mod1.glm) 
+
+# --> MODEL VALIDATION with dispersion parameter
+summary(mod1.glm)
+
 
 # ----------------------------------------------------------------------------
 #                                   glm
 # ----------------------------------------------------------------------------
-# Activate the libraries needed for this 
-library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
 
 
