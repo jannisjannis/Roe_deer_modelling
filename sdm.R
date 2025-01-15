@@ -6,6 +6,8 @@
 #install.packages("ggtext")
 #install.packages("rio")
 #install.packages("corrplot")
+#install.packages("randomForest")
+#install.packages("xgboost")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
@@ -18,7 +20,8 @@ library(tidyterra)
 library(ggtext)
 library(rio) 
 library(corrplot)
-
+library(randomForest)
+library(xgboost)
 #skip to line 121 from here
 
 #### Worlclim raster layer creation ####
@@ -212,17 +215,47 @@ colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "
 r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
 r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
 unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
-#writeVector(unique_points, "thinned_occurence_data_1km.shp", overwrite = TRUE)
+#writeVector(unique_points, "Layer/thinned_occurence_data_1km.shp", overwrite = TRUE)
+thinned_occurence_data <- as.data.frame(crds(unique_points))
+thinned_occurence_data$presence <- 1
+thinned_occurence_data$species <- "Roe_deer"
+
 
 #### Format data and generate pseudo-absences ####
-Roedeer_data <- BIOMOD_FormatingData(
-  resp.var = occurence_data_thinned$presence,           # Presence data
+myBiomodData_r <- BIOMOD_FormatingData(
+  resp.var = thinned_occurence_data$presence,           # Presence data
   expl.var = env_stack,                        # Environmental variables
-  resp.xy = occurence_data_thinned[, c("x", "y")],      # Coordinates of presences
-  resp.name = "species",                      # Name of the species
+  resp.xy = thinned_occurence_data[, c("x", "y")],      # Coordinates of presences
+  resp.name = "Roe_deer",                      # Name of the species
   PA.nb.rep = 2,                               # Number of pseudo-absence replicates
-  PA.nb.absences = 5000,                       # Number of pseudo-absences
+  PA.nb.absences = 2000,                       # Number of pseudo-absences
   PA.strategy = "random"                       # Strategy for generating pseudo-absences
 )
 
-Roedeer_data
+plot(myBiomodData_r)
+# Cross validation & generating of calibration and validation datasets
+#cv.r.r <- bm_CrossValidation(bm.format = myBiomodData.r,
+                             #strategy = 'random',
+                             #nb.rep = 3,
+                             #perc = 0.7)
+#print(cv.r.r)
+#plot(myBiomodData.r, calib.lines = cv.r.r, plot.type = 'raster')
+
+#Modelling
+biooptiona = BIOMOD.options.default()
+biomod_model <- BIOMOD_Modeling(
+  data = myBiomodData_r,
+  models = "GLM",
+  model.options = BIOMOD_Modeling   # Select algorithms,  # Use default options or customize
+  NbRunEval = 5,                             # Number of runs for evaluation
+  DataSplit = 70,                             # 70% for training, 30% for validation
+  VarImport = 3,                              # Variable importance calculation
+  models.eval.meth = c("TSS", "ROC"),         # Evaluation metrics
+  do.full.models = TRUE
+)
+print(biomod_model)
+#myModels <- c('GLM', 'RF', 'XGBOOST')
+#opt.b.f <- bm_ModelingOptions(data.type = 'binary',
+                              #models = myModels,
+                             # strategy = 'bigboss',
+                              #bm.format = myBiomodData.r)
