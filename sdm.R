@@ -5,6 +5,7 @@
 #install.packages("tidyterra")
 #install.packages("ggtext")
 #install.packages("rio")
+#install.packages("corrplot")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
@@ -16,6 +17,7 @@ library(ggplot2)
 library(tidyterra)
 library(ggtext)
 library(rio) 
+library(corrplot)
 
 #skip to line 121 from here
 
@@ -131,9 +133,37 @@ bio19 <-rast("aligned_rasters/bio19_100m.tif")
 forest_cover <- rast("aligned_rasters/forest_cover_100m.tif")
 grassland_cover <- rast("aligned_rasters/grassland_cover_100m.tif")
 
+env_stack <- c(aspect, slope, bio2, bio11, bio19, forest_cover, grassland_cover)
+#### Test for correlation ####
 env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover)
 
-#PRÜFEN OB DIE VARIAblen abhängig voneinander sind, dann braucht man sie nciht?!
+env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
+cor_matrix <- cor(env_values, method = "spearman") #spearman correltion to test for correlation
+colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
+
+#show correlation plot
+corrplot(cor_matrix, 
+         method = "color",                     # Use color tiles for visualization
+         col = colors(200),                    # Apply your custom color palette
+         type = "upper",                       # Show only the upper triangle
+         order = "hclust",                     # Cluster variables based on correlations
+         addCoef.col = "black",                # Add correlation coefficients in black
+         number.cex = 0.7,                     # Adjust size of correlation numbers
+         tl.cex = 0.3,                         # Adjust size of text labels
+         title = "Spearman Correlation Matrix", # Add a title
+         mar = c(0, 0, 2, 0),                  # Adjust margins for the title
+         diag = FALSE                          # Do not show the diagonal
+)
+# Find variable pairs with |correlation| > 0.8
+high_corr_pairs <- which(abs(cor_matrix) > 0.8, arr.ind = TRUE)
+# Exclude self-correlations
+high_corr_pairs <- high_corr_pairs[high_corr_pairs[, 1] != high_corr_pairs[, 2], ]
+# Display highly correlated pairs
+print(high_corr_pairs)
+# -> therefore exclude dem_alps_100m and bio1
+env_stack <- env_stack[[names(env_stack) != "dem_alps_100m"]]
+env_stack <- env_stack[[names(env_stack) != "bio1"]]
+names(env_stack)
 
 #### read and thin presence data ####
 presence_data <- import("Rehe_Unfall_und_Abschuss.csv", header = TRUE)
@@ -169,7 +199,7 @@ clipped_data <- as.data.frame(presence_25832_within_southtyrol)
 # Ensure the new coordinates are included in the data frame
 clipped_data$X_25832 <- crds(presence_25832_within_southtyrol)[, 1]  # X coordinate (EPSG:25832)
 clipped_data$y_25832 <- crds(presence_25832_within_southtyrol)[, 2]  # Y coordinate (EPSG:25832)
-export(clipped_data, "Roedeer_within_ST_25832.csv")
+#export(clipped_data, "Roedeer_within_ST_25832.csv")
 
 #create table for biomod2 with just x,y coordinates, the presence indicator and the species name
 presence_data_biomod <- clipped_data[, c("y_25832", "X_25832")]
@@ -182,7 +212,7 @@ colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "
 r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
 r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
 unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
-writeVector(unique_points, "thinned_occurence_data_1km.shp", overwrite = TRUE)
+#writeVector(unique_points, "thinned_occurence_data_1km.shp", overwrite = TRUE)
 
 #### Format data and generate pseudo-absences ####
 Roedeer_data <- BIOMOD_FormatingData(
