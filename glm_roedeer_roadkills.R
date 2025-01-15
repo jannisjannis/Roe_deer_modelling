@@ -348,28 +348,73 @@ library(car) # needed for the Anova() function, contains function vif(), which o
 # To obtain model validation plots, We first need to calculate the glm
 # ... WITHOUT checking its statistical results!
 
-
 # First model option without interaction
-mod1.glm <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+mod1.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                   Small_Woody_Features + Pastures + Grasslands + Watercourses +
                   Lakes + Human_Influence + Road_Type, 
                 data = df_na, 
-                family = "poisson")
+                family = poisson(link = "log"))
+mod2.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                  Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                  Lakes + Human_Influence + Road_Type, 
+                data = df_na, 
+                family = quasipoisson(link = "log"))
 
 # the variance inflation factor VIF
 # ... offers an easy alternative way to check for predictor independence.
 # Without further explanation: Kick out predictors that have a value > 5 in the following list:
 # ... They are too heavily correlated with other predictors.
-vif(mod1.glm) # all looks good --> Predictors are independent
+vif(mod1.counts) # all looks good --> Predictors are independent
 
 # model validation: residual plots only partially informative 
 # ...many road kill counts are 0 or close to 0
-par(mfrow = c(2,2))
-plot(mod1.glm) 
+#par(mfrow = c(2,2))
+#plot(mod1.glm) 
 
 # --> MODEL VALIDATION with dispersion parameter
-summary(mod1.glm)
+# What the model believes:
+# mean value = data variance --> obs. / exp. dispersion = 1
+# True dispersion in the data: Deviance / df
+summary(mod1.counts)
+dispersion.parameter <- mod1.counts$deviance / mod1.counts$df.residual
+dispersion.parameter
 
+summary(mod2.counts)
+dispersion.parameter <- mod2.counts$deviance / mod2.counts$df.residual
+dispersion.parameter
+
+# Let's try out zero-inflated models
+# Load required package
+library(pscl)
+
+# part behind | --> Explains structural zeros 
+#...(e.g., locations where road kills cannot occur due to unsuitable conditions, 
+#...such as areas with no roads)
+mod_zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                      Lakes + Human_Influence + Road_Type | Road_Type, 
+                    data = df_na, 
+                    dist = "poisson")
+summary(mod_zip)
+
+
+# mod1.binary <- glm(Road_kills ~  Broadleave + Coniferous + Mixed_Forest + 
+#                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+#                      Lakes + Human_Influence + Road_Type, 
+#                    data = df_na, 
+#                   family = binomial(link = "logit"))
+# #par(mfrow=c(2,2))
+# #plot(mod1.binary)
+# summary(mod1.binary)
+# 
+# mod2.binary <- glm(Road_kills ~  Broadleave + Coniferous + Mixed_Forest + 
+#                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+#                      Lakes + Human_Influence + Road_Type, 
+#                    data = df_na, 
+#                    family = quasibinomial(link = "logit"))
+# #par(mfrow=c(2,2))
+# #plot(mod1.binary)
+# summary(mod2.binary)
 
 # ----------------------------------------------------------------------------
 #                                   glm
