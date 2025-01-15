@@ -52,15 +52,33 @@ rasterExportPath <- "Export_R/raster"
 # 
 # ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
 # 
-# # # # Load all the files # # #
+# # # # # Load all the files # # #
+# 
 #  # subds allows to load specific band
 # roadKills <- rast(roadKillFilePath)
 # roadKillsCount <- rast(roadKillCountsFilePath)
-# broadleave <- rast(BLforestFilePath, subds = 1)
-# coniferous <- rast(CforestFilePath, subds = 2)
-# mixedForest <- rast(MixforestFilePath, subds = 25)
+# 
+# broadleave_unmasked <- rast(BLforestFilePath)
+# mask_layer_broadleave <- broadleave_unmasked == 1
+# broadleave <- mask(broadleave_unmasked, mask_layer_broadleave)
+# # broadleave <- rast(BLforestFilePath, subds = 1)
+# 
+# coniferous_unmasked <- rast(CforestFilePath)
+# mask_layer_coniferous <- coniferous_unmasked == 2
+# coniferous <- mask(coniferous_unmasked, mask_layer_coniferous)
+# # coniferous <- rast(CforestFilePath, subds = 2)
+# 
+# mixedForest_unmasked <- rast(MixforestFilePath)
+# mask_layer_mixedForest <- mixedForest_unmasked == 25
+# mixedForest <- mask(mixedForest_unmasked, mask_layer_mixedForest)
+# # mixedForest <- rast(MixforestFilePath, subds = 25)
+# 
 # transitionalLand <- rast(transitionalLandFilePath)
-# pastures <- rast(pasturesFilePath, subds = 18)
+# 
+# pastures_unmasked <- rast(pasturesFilePath)
+# mask_layer_pasture <- pastures_unmasked == 18
+# pastures <- mask(pastures_unmasked, mask_layer_pasture)
+# 
 # grasslands <- rast(grasslandsFilePath)
 # roadType <- rast(roadTypeFilePath)
 # #roadNetwork <- rast(roadTypeFilePath)
@@ -326,39 +344,6 @@ boxplot(Road_kills_Count ~ Lakes,
         xlab = "Lakes",
         ylab = "Road kill count")
 
-
-
-# # Assuming roadnetwork is already loaded as a raster
-# # Convert roadnetwork raster to "yes" or "no"
-# roadTypes_values <- values(roadType_crop)
-# #roadTypes_factor <- ifelse(roadTypes_values == 1, "Yes", "No")
-# 
-# roadKills_values <- values(roadKillsCount_crop)
-# #roadKills_factor <- ifelse(roadKills_values == 1, "Yes", "No")
-# 
-# # Combine both datasets into a data frame
-# df <- data.frame(road = roadTypes_values, roadkill = roadKills_values)
-# 
-# # Ensure that the number of roadkill and road network values match
-# df <- na.omit(df)  # Remove any NA values
-# 
-# # Check the resulting data frame
-# head(df)
-# 
-# 
-# # Filter out values equal to 0
-# filtered_df <- df[df$roadKills_count_raster_res100 > 0, ]
-# head(filtered_df)
-
-# Beispiel für einen Boxplot
-boxplot(filtered_df$roadKills_count_raster_res100, horizontal = TRUE)
-
-ggplot(filtered_df, aes(x = factor(roadType), y = roadKills_count_raster_res100, fill = factor(roadType))) +
-  geom_boxplot() +
-  labs(title = "Road Presence (0-8 Scale) vs. Roadkill Occurrence",
-       x = "Road Presence (0-8)",
-       y = "Roadkill Occurrence") +
-  theme_minimal()
 
 # ----------------------------------------------------------------------------
 #                                   glm
