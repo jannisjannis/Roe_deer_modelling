@@ -52,34 +52,34 @@ rasterExportPath <- "Export_R/raster"
 # 
 # ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
 # 
-# # # # Load all the files # # #
+# # # # # Load all the files # # #
+# 
 #  # subds allows to load specific band
 # roadKills <- rast(roadKillFilePath)
 # roadKillsCount <- rast(roadKillCountsFilePath)
-# broadleave <- rast(BLforestFilePath, subds = 1)
-# coniferous <- rast(CforestFilePath, subds = 2)
-# mixedForest <- rast(MixforestFilePath, subds = 25)
-# transitionalLand <- rast(transitionalLandFilePath)
-# pastures <- rast(pasturesFilePath, subds = 18)
+# 
+# 
+# broadleave_unmasked <- rast(BLforestFilePath)
+# broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
+# 
+# coniferous_unmasked <- rast(CforestFilePath)
+# coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
+# 
+# mixedForest_unmasked <- rast(MixforestFilePath)
+# mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 25, x, 0))
+# 
+# transitionalLand_unmasked<- rast(transitionalLandFilePath)
+# transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
+# 
+# pastures_unmasked <- rast(pasturesFilePath)
+# pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
+# 
 # grasslands <- rast(grasslandsFilePath)
 # roadType <- rast(roadTypeFilePath)
-# #roadNetwork <- rast(roadTypeFilePath)
 # humanInfluence <- rast(humansFilePath)
 # watercourses <- rast(watercoursesFilePath)
 # lakes<- rast(lakesFilePath)
 # #sdm <- rast(sdmFilePath)
-# 
-# # list of all variables             !!!!!!! add sdm !!!!!!!
-# all_variables <- list(roadKills, roadKillsCount, broadleave, coniferous,
-#                       mixedForest, transitionalLand, pastures, grasslands,
-#                       roadType, humanInfluence, watercourses, lakes)
-# names(all_variables) <- c("roadKills", "roadKillsCount", "broadleave","coniferous",
-#                           "mixedForest", "transitionalLand", "pastures", "grasslands",
-#                           "roadType", "humanInfluence", "watercourses", "lakes")
-# 
-# # get an overview over raster properties - function crs(raster) gives
-# # coordinate reference system, function res(r) gives resolution
-# print(grasslands)
 # 
 # # ----------------------------------------------------------------------------
 # # BEFORE checking assumptions and running the GLM
@@ -188,9 +188,9 @@ transitionalLand <- rast(file.path(rasterExportPath, "transitionalLand.tif"))
 pastures <- rast(file.path(rasterExportPath, "pastures.tif"))
 grasslands <- rast(file.path(rasterExportPath, "grasslands.tif"))
 roadType <- rast(file.path(rasterExportPath, "roadType.tif"))
-humanInfluence <- rast(file.path(rasterExportPath, "roadType.tif"))
-watercourses <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
-lakes <- rast(file.path(rasterExportPath, "lakes_crop.tif"))
+humanInfluence <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
+watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
+lakes <- rast(file.path(rasterExportPath, "lakes.tif"))
 #sdm <- rast(rasterExportPath, "sdm.tif")
 
 
@@ -209,104 +209,215 @@ library(ggplot2) # needed for some graphs
 # Extract values and raster names
 
 roadKills_values <- values(roadKills)
-roadKills_values <- ifelse(roadKills_values == 1, "Yes", "No") #binary data
-roadKillsCount_values <- values(roadKillsCount)
+roadKills_values <- as.factor(ifelse(roadKills_values == 1, "Yes", "No")) #binary data
+roadKillsCount_values <- as.integer(values(roadKillsCount))
 broadleave_values <- values(broadleave)
-broadleave_values <- ifelse(broadleave_values == 1, "Yes", "No") #binary data
+broadleave_values <- as.factor(ifelse(broadleave_values == 1, "Yes", "No")) #binary data
 coniferous_values <- values(coniferous)
-coniferous_values <- ifelse(coniferous_values == 1, "Yes", "No") #binary data
+coniferous_values <- as.factor(ifelse(coniferous_values == 2, "Yes", "No")) #binary data
 mixedForest_values <- values(mixedForest)
-mixedForest_values <- ifelse(mixedForest_values == 1, "Yes", "No") #binary data
+mixedForest_values <- as.factor(ifelse(mixedForest_values == 25, "Yes", "No")) #binary data
 transitionalLand_values <- values(transitionalLand)
-transitionalLand_values <- ifelse(transitionalLand_values == 1, "Yes", "No") #binary data
+transitionalLand_values <- as.factor(ifelse(transitionalLand_values == 1, "Yes", "No")) #binary data
 pastures_values <- values(pastures)
-pastures_values <- ifelse(pastures_values == 1, "Yes", "No") #binary data
+pastures_values <- as.factor(ifelse(pastures_values == 18, "Yes", "No")) #binary data
 grasslands_values <- values(grasslands)
-grasslands_values <- ifelse(grasslands_values == 1, "Yes", "No") #binary data
+grasslands_values <- as.factor(ifelse(grasslands_values == 1, "Yes", "No")) #binary data
 roadType_values <- values(roadType)
 humanInfluence_values <- values(humanInfluence)
 watercourses_values <- values(watercourses)
-watercourses_values <- ifelse(watercourses_values == 1, "Yes", "No") #binary data
+watercourses_values <- as.factor(ifelse(watercourses_values == 1, "Yes", "No")) #binary data
 lakes_values <- values(lakes)
-lakes_values <- ifelse(lakes_values == 1, "Yes", "No") #binary data
+lakes_values <- as.factor(ifelse(lakes_values == 1, "Yes", "No")) #binary data
 
+# Create the factor with appropriate levels
+roadType_factor <- factor(roadType_values, 
+                          levels = c("0", "1", "2", "3", "4", "5"),
+                          labels = c("No Road", "Highway", "State Road", 
+                                     "Country Road", "Municipal Road", 
+                                     "Adress Road"))
 
-roadType_factor <- factor(roadType_values, levels = c("No Road", "Highway", "State Road", 
-                                                      "Country Road", "Municipal Road",
-                                                      "Adress Road"))
-levels(roadType_factor)
-# Replace ALL numeric entries by road type
-roadType_factor[roadType_factor == "0"] <- "No Road"
-roadType_factor[roadType_factor == "1"] <- "Highway"
-roadType_factor[roadType_factor == "2"] <- "State Road"
-roadType_factor[roadType_factor == "3"] <- "Country Road"
-roadType_factor[roadType_factor == "4"] <- "Municipal Road"
-roadType_factor[roadType_factor == "5"] <- "Adress Road"
+# Check the levels to confirm
 levels(roadType_factor)
 
-df <- data.frame(roadKills_values , roadKillsCount_values, broadleave_values,
-                 coniferous_values,mixedForest_values,transitionalLand_values,
-                 pastures_values, grasslands_values,roadType_factor, 
+# Create the data frame
+df <- data.frame(roadKills_values, roadKillsCount_values, broadleave_values,
+                 coniferous_values, mixedForest_values, transitionalLand_values,
+                 pastures_values, grasslands_values, roadType_factor, 
                  humanInfluence_values, watercourses_values, lakes_values)
-colnames(df) <- c("Road kills", "Road kills Count", "Broadleave", "Coniferous", 
-                  "Mixed Forest", "Small Woody Features", "Pastures",
-                  "Grasslands", "Road Type", "Human Influence", "Watercourses",
+
+# Assign column names
+colnames(df) <- c("Road_kills", "Road_kills_Count", "Broadleave", "Coniferous", 
+                  "Mixed_Forest", "Small_Woody_Features", "Pastures",
+                  "Grasslands", "Road_Type", "Human_Influence", "Watercourses",
                   "Lakes")
+
+# Inspect the first few rows
 head(df)
 
-df_na <- subset(df, !is.na(roadKillsCount_values))
+# Remove rows where "Road kills Count" is NA
+df_na <- subset(df, !is.na(df$Road_kills_Count))
+
+# Inspect the filtered data
 head(df_na)
 
+# Remove rows where "Road kill Count" is 0
+df_greater0 <- subset(df_na, df_na$Road_kills_Count != 0)
 
+# ------------------------- Make simple plots ----------------------------------
+####                Boxplots for binary/factorial variables                 ####
 
-# Beispiel für einen Boxplot
-boxplot(roadKillsCount_values, horizontal = TRUE)
-boxplot(roadType_factor, horizontal = TRUE)
-boxplot(humanInfluence_values, horizontal = TRUE)
-
-# Make simple boxplots
-boxplot(roadKillsCount_values ~ roadType_factor,
+par(mfrow = c(2,2))
+boxplot(Road_kills_Count ~ Road_Type,
+        data = df_greater0,
         # change axes labels
         xlab = "Road type",
         ylab = "Road kill count")
 
+boxplot(Road_kills_Count ~ Broadleave,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Broadleaved Forest",
+        ylab = "Road kill count")
 
-# # Assuming roadnetwork is already loaded as a raster
-# # Convert roadnetwork raster to "yes" or "no"
-# roadTypes_values <- values(roadType_crop)
-# #roadTypes_factor <- ifelse(roadTypes_values == 1, "Yes", "No")
-# 
-# roadKills_values <- values(roadKillsCount_crop)
-# #roadKills_factor <- ifelse(roadKills_values == 1, "Yes", "No")
-# 
-# # Combine both datasets into a data frame
-# df <- data.frame(road = roadTypes_values, roadkill = roadKills_values)
-# 
-# # Ensure that the number of roadkill and road network values match
-# df <- na.omit(df)  # Remove any NA values
-# 
-# # Check the resulting data frame
-# head(df)
-# 
-# 
-# # Filter out values equal to 0
-# filtered_df <- df[df$roadKills_count_raster_res100 > 0, ]
-# head(filtered_df)
+boxplot(Road_kills_Count ~ Coniferous,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Coniferous forest",
+        ylab = "Road kill count")
 
-# Beispiel für einen Boxplot
-boxplot(filtered_df$roadKills_count_raster_res100, horizontal = TRUE)
+boxplot(Road_kills_Count ~ Mixed_Forest,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Mixed forest",
+        ylab = "Road kill count")
 
-ggplot(filtered_df, aes(x = factor(roadType), y = roadKills_count_raster_res100, fill = factor(roadType))) +
-  geom_boxplot() +
-  labs(title = "Road Presence (0-8 Scale) vs. Roadkill Occurrence",
-       x = "Road Presence (0-8)",
-       y = "Roadkill Occurrence") +
-  theme_minimal()
+boxplot(Road_kills_Count ~ Small_Woody_Features,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Small Woody Features",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Pastures,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Pastures",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Grasslands,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Grasslands",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Watercourses,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Watercourses",
+        ylab = "Road kill count")
+
+boxplot(Road_kills_Count ~ Lakes,
+        data = df_greater0,
+        # change axes labels
+        xlab = "Lakes",
+        ylab = "Road kill count")
+
+# all factorial: Broadleave + Coniferous + Mixed_Forest + Small_Woody_Features + Pastures + Grasslands + Watercourses + Lakes
+
+
+####                  Histogram for numerical variable                     ####
+
+df_filtered_humans <- df_greater0[df_greater0$Human_Influence != 0& df_greater0$Human_Influence <= 1000, ]
+hist(df_filtered_humans$Human_Influence,
+     main = "Histogram of Human Influence (Values > 0 and < 1000)",
+     xlab = "Human Influence",
+     col = "lightblue")
+
+# COMMENT: quite a lot of data logically at 0, therefore filtered out. 
+# Plus an outlier: Bolzano with extremely high population density --> also filtered out
+
+# ----------------------------------------------------------------------------
+#                              Check assumptions
+# ----------------------------------------------------------------------------
+# Activate the libraries needed for this 
+library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
+
+# ----------------- (A) - Independence of predictors ---------------------------
+# To find out: check by pairwise "correlations" among predictor values
+
+# To obtain model validation plots, We first need to calculate the glm
+# ... WITHOUT checking its statistical results!
+
+# First model option without interaction
+mod1.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                  Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                  Lakes + Human_Influence + Road_Type, 
+                data = df_na, 
+                family = poisson(link = "log"))
+mod2.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                  Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                  Lakes + Human_Influence + Road_Type, 
+                data = df_na, 
+                family = quasipoisson(link = "log"))
+
+# the variance inflation factor VIF
+# ... offers an easy alternative way to check for predictor independence.
+# Without further explanation: Kick out predictors that have a value > 5 in the following list:
+# ... They are too heavily correlated with other predictors.
+vif(mod1.counts) # all looks good --> Predictors are independent
+
+# model validation: residual plots only partially informative 
+# ...many road kill counts are 0 or close to 0
+#par(mfrow = c(2,2))
+#plot(mod1.glm) 
+
+# --> MODEL VALIDATION with dispersion parameter
+# What the model believes:
+# mean value = data variance --> obs. / exp. dispersion = 1
+# True dispersion in the data: Deviance / df
+summary(mod1.counts)
+dispersion.parameter <- mod1.counts$deviance / mod1.counts$df.residual
+dispersion.parameter
+
+summary(mod2.counts)
+dispersion.parameter <- mod2.counts$deviance / mod2.counts$df.residual
+dispersion.parameter
+
+# Let's try out zero-inflated models
+# Load required package
+library(pscl)
+
+# part behind | --> Explains structural zeros 
+#...(e.g., locations where road kills cannot occur due to unsuitable conditions, 
+#...such as areas with no roads)
+mod_zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                      Lakes + Human_Influence + Road_Type | Road_Type, 
+                    data = df_na, 
+                    dist = "poisson")
+summary(mod_zip)
+
+
+# mod1.binary <- glm(Road_kills ~  Broadleave + Coniferous + Mixed_Forest + 
+#                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+#                      Lakes + Human_Influence + Road_Type, 
+#                    data = df_na, 
+#                   family = binomial(link = "logit"))
+# #par(mfrow=c(2,2))
+# #plot(mod1.binary)
+# summary(mod1.binary)
+# 
+# mod2.binary <- glm(Road_kills ~  Broadleave + Coniferous + Mixed_Forest + 
+#                      Small_Woody_Features + Pastures + Grasslands + Watercourses +
+#                      Lakes + Human_Influence + Road_Type, 
+#                    data = df_na, 
+#                    family = quasibinomial(link = "logit"))
+# #par(mfrow=c(2,2))
+# #plot(mod1.binary)
+# summary(mod2.binary)
 
 # ----------------------------------------------------------------------------
 #                                   glm
 # ----------------------------------------------------------------------------
-# Activate the libraries needed for this 
-library(car) # needed for the Anova() function, contains function vif(), which offers an easy alternative way to check predictor independence.
 
 
