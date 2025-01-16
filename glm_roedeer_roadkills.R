@@ -163,7 +163,7 @@ rasterExportPath <- "Export_R/raster"
 # humanInfluence_crop <- mask(crop (humanInfluence, ST_border), ST_border)
 # watercourses_crop <- mask(crop (watercourses, ST_border), ST_border)
 # lakes_crop <- mask(crop (lakes, ST_border), ST_border)
-# sdm_crop <- mask(crop (sdm_crop, ST_border), ST_border)
+# sdm_crop <- mask(crop (sdm, ST_border), ST_border)
 # 
 # # ----------------------------------------------------------------------------
 # # save all layers and in the future use them!
@@ -183,45 +183,48 @@ rasterExportPath <- "Export_R/raster"
 # writeRaster(watercourses_crop, file.path(rasterExportPath, "watercourses.tif"), overwrite = TRUE)
 # writeRaster(lakes_crop, file.path(rasterExportPath, "lakes.tif"), overwrite = TRUE)
 # writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
+# 
+# 
+# ####### DISTANCE VARIABLES
+# 
+# # Human influence as distance from nearest town
+# humanInfluence[humanInfluence==0] <- NA 
+# distance_humanInfluence <- distance(humanInfluence)
+# writeRaster(distance_humanInfluence, file.path(rasterExportPath, "distance_humanInfluence.tif"), overwrite = TRUE)
+# 
+# broadleave[broadleave==0] <- NA 
+# distance_broadleave <- distance(broadleave)
+# writeRaster(distance_broadleave, file.path(rasterExportPath, "distance_broadleave.tif"), overwrite = TRUE)
+# 
+# coniferous[coniferous==0] <- NA 
+# distance_coniferous <- distance(coniferous)
+# writeRaster(distance_coniferous, file.path(rasterExportPath, "distance_coniferous.tif"), overwrite = TRUE)
+# 
+# mixedForest[mixedForest==0] <- NA 
+# distance_mixedForest <- distance(mixedForest)
+# writeRaster(distance_mixedForest, file.path(rasterExportPath, "distance_mixedForest.tif"), overwrite = TRUE)
+# 
+# transitionalLand[transitionalLand==0] <- NA 
+# distance_transitionalLand <- distance(transitionalLand)
+# writeRaster(distance_transitionalLand, file.path(rasterExportPath, "distance_transitionalLand.tif"), overwrite = TRUE)
+# 
+# pastures[pastures==0] <- NA 
+# distance_pastures <- distance(pastures)
+# writeRaster(distance_pastures, file.path(rasterExportPath, "distance_pastures.tif"), overwrite = TRUE)
+# 
+# grasslands[grasslands==0] <- NA 
+# distance_grasslands <- distance(grasslands)
+# writeRaster(distance_grasslands, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
+# 
+# watercourses[watercourses==0] <- NA 
+# distance_watercourses <- distance(grasslands)
+# writeRaster(distance_watercourses, file.path(rasterExportPath, "distance_watercourses.tif"), overwrite = TRUE)
+# 
+# lakes[lakes==0] <- NA 
+# distance_lakes <- distance(lakes)
+# writeRaster(distance_lakes, file.path(rasterExportPath, "distance_lakes.tif"), overwrite = TRUE)
 
-####### DISTANCE VARIABLES
 
-# Human influence as distance from nearest town
-humanInfluence[humanInfluence==0] <- NA 
-distance_humanInfluence <- distance(humanInfluence)
-writeRaster(distance_humanInfluence, file.path(rasterExportPath, "distance_humanInfluence.tif"), overwrite = TRUE)
-
-broadleave[broadleave==0] <- NA 
-distance_broadleave <- distance(broadleave)
-writeRaster(distance_broadleave, file.path(rasterExportPath, "distance_broadleave.tif"), overwrite = TRUE)
-
-coniferous[coniferous==0] <- NA 
-distance_coniferous <- distance(coniferous)
-writeRaster(distance_coniferous, file.path(rasterExportPath, "distance_coniferous.tif"), overwrite = TRUE)
-
-mixedForest[mixedForest==0] <- NA 
-distance_mixedForest <- distance(mixedForest)
-writeRaster(distance_mixedForest, file.path(rasterExportPath, "distance_mixedForest.tif"), overwrite = TRUE)
-
-transitionalLand[transitionalLand==0] <- NA 
-distance_transitionalLand <- distance(transitionalLand)
-writeRaster(distance_transitionalLand, file.path(rasterExportPath, "distance_transitionalLand.tif"), overwrite = TRUE)
-
-pastures[pastures==0] <- NA 
-distance_pastures <- distance(pastures)
-writeRaster(distance_pastures, file.path(rasterExportPath, "distance_pastures.tif"), overwrite = TRUE)
-
-grasslands[grasslands==0] <- NA 
-distance_grasslands <- distance(grasslands)
-writeRaster(distance_grasslands, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
-
-watercourses[watercourses==0] <- NA 
-distance_watercourses <- distance(grasslands)
-writeRaster(distance_watercourses, file.path(rasterExportPath, "distance_watercourses.tif"), overwrite = TRUE)
-
-lakes[lakes==0] <- NA 
-distance_lakes <- distance(lakes)
-writeRaster(distance_lakes, file.path(rasterExportPath, "distance_lakes.tif"), overwrite = TRUE)
 
 ######
 #############       SKIPPING OF CODE - E N D                    ##############
@@ -241,7 +244,7 @@ roadNetwork <- rast(file.path(rasterExportPath, "roadNetwork.tif"))
 humanInfluence <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
 watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
 lakes <- rast(file.path(rasterExportPath, "lakes.tif"))
-sdm <- rast(rasterExportPath, "sdm.tif")
+sdm <- rast("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carlas MacBook Air/dokumente/Uni/Master/second_year/year2_sem1/Com_EnvMan/Projectstudy/data/Export_R/raster/sdm.tif")
 
 # all DISTANCE files
 broadleave_dist <- rast(file.path(rasterExportPath, "distance_broadleave.tif"))
@@ -348,7 +351,7 @@ df_na <- subset(df, !is.na(df$Road_kills_Count))
 df_dist_na <- subset(df_dist, !is.na(df$Road_kills_Count))
 
 # Remove rows where "Road kill Count" is 0
-# df_greater0 <- subset(df_na, df_na$Road_kills_Count != 0)
+df_greater0 <- subset(df_na, df_na$Road_kills_Count != 0)
 
 # ------------------------- Make simple plots ----------------------------------
 ####                Boxplots for binary/factorial variables                 ####
@@ -413,7 +416,6 @@ boxplot(Road_kills_Count ~ Lakes,
 
 ####                  Histogram for numerical variable                     ####
 
-#df_filtered_humans <- df_greater0[df_greater0$Human_Influence != 0& df_greater0$Human_Influence <= 1000, ]
 hist(df_na$Human_Influence,
      xlab = "Distance to human settlements [m]",
      col = "lightblue")
@@ -426,12 +428,16 @@ lapply(names(df_dist_na)[sapply(df_dist_na, is.numeric)], function(var) {
   hist(df_dist_na[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
 })
 
-########          Pair-wise scatterplots
+########          Scatterplots
+# List of numeric variables (excluding the response variable)
+numeric_vars <- names(df_dist_na)[sapply(df_dist_na, is.numeric)]
 
-pairs(df_dist_na[, c("Road_kills_Count", "Broadleave", "Coniferous", 
-                     "Mixed_Forest", "Small_Woody_Features", "Pastures",
-                     "Grasslands", "Human_Influence", "Watercourses",
-                     "Lakes")], main = "Scatterplot Matrix")
+# Create scatterplots for each numeric predictor against the response variable
+lapply(numeric_vars, function(var) {
+  plot(df[[var]], df_dist_na$Road_kills_Count, main = paste("Scatterplot of", var, "vs Response"), 
+       xlab = var, ylab = "Response Variable", col = "blue", pch = 16)
+})
+
 
 
 # ----------------------------------------------------------------------------
