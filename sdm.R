@@ -6,6 +6,8 @@
 #install.packages("ggtext")
 #install.packages("rio")
 #install.packages("corrplot")
+#install.packages("randomForest")
+#install.packages("xgboost")
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
@@ -18,7 +20,8 @@ library(tidyterra)
 library(ggtext)
 library(rio) 
 library(corrplot)
-
+library(randomForest)
+library(xgboost)
 #skip to line 121 from here
 
 #### Worlclim raster layer creation ####
@@ -212,17 +215,64 @@ colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "
 r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
 r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
 unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
-#writeVector(unique_points, "thinned_occurence_data_1km.shp", overwrite = TRUE)
+#writeVector(unique_points, "Layer/thinned_occurence_data_1km.shp", overwrite = TRUE)
+thinned_occurence_data <- as.data.frame(crds(unique_points))
+thinned_occurence_data$presence <- 1
+thinned_occurence_data$species <- "Roe_deer"
+
 
 #### Format data and generate pseudo-absences ####
-Roedeer_data <- BIOMOD_FormatingData(
-  resp.var = occurence_data_thinned$presence,           # Presence data
+myBiomodData_r <- BIOMOD_FormatingData(
+  resp.var = thinned_occurence_data$presence,           # Presence data
   expl.var = env_stack,                        # Environmental variables
-  resp.xy = occurence_data_thinned[, c("x", "y")],      # Coordinates of presences
-  resp.name = "species",                      # Name of the species
+  resp.xy = thinned_occurence_data[, c("x", "y")],      # Coordinates of presences
+  resp.name = "Roe_deer",                      # Name of the species
   PA.nb.rep = 2,                               # Number of pseudo-absence replicates
-  PA.nb.absences = 5000,                       # Number of pseudo-absences
+  PA.nb.absences = 2000,                       # Number of pseudo-absences
   PA.strategy = "random"                       # Strategy for generating pseudo-absences
 )
 
-Roedeer_data
+plot(myBiomodData_r)
+# Cross validation & generating of calibration and validation datasets
+#cv.r.r <- bm_CrossValidation(bm.format = myBiomodData.r,
+                             #strategy = 'random',
+                             #nb.rep = 3,
+                             #perc = 0.7)
+#print(cv.r.r)
+#plot(myBiomodData.r, calib.lines = cv.r.r, plot.type = 'raster')
+
+#### Modelling ####
+biomod_model <- BIOMOD_Modeling(
+  bm.format = myBiomodData_r,
+  modeling.id = "Example",
+  models = c('RF', 'GLM'),
+  CV.strategy = 'random',
+  CV.nb.rep = 2,
+  CV.perc = 0.8,
+  OPT.strategy = 'bigboss',
+  metric.eval = c('TSS','ROC'),
+  var.import = 2,
+  seed.val = 42)
+
+biomod_model_scores <- get_evaluations(biomod_model)
+dim(biomod_model_scores)
+dimnames(biomod_model_scores) 
+
+biomod_model_variable_importance <- get_variables_importance(biomod_model)
+bm_PlotEvalBoxplot(bm.out = biomod_model, group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model, group.by = c('expl.var', 'algo', 'run'))
+#looks like bio11 and forest cover are the best predictors
+
+biomod_projection <- BIOMOD_Projection(
+  bm.mod = biomod_model,
+  new.env = env_stack,        # Your environmental variable stack
+  proj.name = "species_projection",
+  selected.models = 'RF',    # You can specify models, e.g., RF or GLM
+  binary.meth = "TSS",        # Use a binary method based on TSS or ROC
+  compress = FALSE,
+  clamping.mask = FALSE,
+  output.format = ".img"      # You can choose GeoTIFF or other formats
+)
+    
+proj_files <- get_predictions(biomod_projection)
+writeRaster(proj_files[[1]], filename = "species_distribution_RF.tif", overwrite = TRUE)
