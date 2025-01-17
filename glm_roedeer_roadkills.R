@@ -7,10 +7,10 @@
 #-------------------------------------------------------------------#
 
 # clear workspace from any previous entry
-rm(list = ls()) 
+rm(list = ls())
 
 # set working directory
-setwd("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carlas MacBook Air/dokumente/Uni/Master/second_year/year2_sem1/Com_EnvMan/Projectstudy/data")  
+setwd("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carlas MacBook Air/dokumente/Uni/Master/second_year/year2_sem1/Com_EnvMan/Projectstudy/data")
 
 # install + load packages
 #install.packages("raster") # attention number of bands
@@ -26,21 +26,20 @@ rasterExportPath <- "Export_R/raster"
 ######
 #############       SKIPPING OF CODE - S T A R T                    ##############
 ######
-
+# 
 # ###############################################################################
 # # Filepaths for data
 # ###############################################################################
-# roadKillFilePath = "GIS/roadKills_presence_res100.tif"     # response variable
+# 
+# # response variable
+# roadKillFilePath = "GIS/roadKills_presence_res100.tif"     
 # roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
+# 
 # ## predictor variables
-#   # broad-leaved forest --> band 1
 # BLforestFilePath = "variables_glm_clipped_ST_minus_NP/forest.tif"
-#   # coniferous forest --> band 2
 # CforestFilePath = "variables_glm_clipped_ST_minus_NP/forest.tif"
-#   # mixed forest --> band 313
 # MixforestFilePath = "variables_glm_clipped_ST_minus_NP/landuse.tif"
 # transitionalLandFilePath = "forGLM/rastersized_data/smallWoodyFeatures_EPSG25832.tif"
-#   #pastures --> band 231
 # pasturesFilePath = "variables_glm_clipped_ST_minus_NP/landuse.tif"
 # grasslandsFilePath = "variables_glm_clipped_ST_minus_NP/grassland_cover_100m.tif"
 # sdmFilePath = "variables_glm_clipped_ST_minus_NP/species_distribution_RF.tif"
@@ -49,8 +48,12 @@ rasterExportPath <- "Export_R/raster"
 # roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
 # roadNetworkFilePath = "GIS/relevant_roads_raster_10by10.tif"
 # humansFilePath = "variables_glm_clipped_ST_minus_NP/human_influence.tif"
+# # predictor variables - topography
+# demFilePath = "variables_glm_clipped_ST_minus_NP/dem_100m.tif"
+# aspectFilePath = "variables_glm_clipped_ST_minus_NP/aspect_100m.tif"
+# slopeFilePath = "variables_glm_clipped_ST_minus_NP/slope_100m.tif"
 # 
-# 
+# # Extent file (South Tyrol - NP)
 # ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
 # 
 # 
@@ -87,6 +90,10 @@ rasterExportPath <- "Export_R/raster"
 # lakes<- rast(lakesFilePath)
 # sdm <- rast(sdmFilePath)
 # 
+# dem <- rast(demFilePath)
+# aspect <- rast(aspectFilePath)
+# slope <- rast(slopeFilePath)
+# 
 # # ----------------------------------------------------------------------------
 # # BEFORE checking assumptions and running the GLM
 # # ----------------------------------------------------------------------------
@@ -117,6 +124,9 @@ rasterExportPath <- "Export_R/raster"
 # watercourses <- project(watercourses, target_crs)
 # lakes <- project(lakes, target_crs)
 # sdm <- project(sdm, target_crs)
+# dem <- project(dem, target_crs)
+# aspect <- project(aspect, target_crs)
+# slope <- project(slope, target_crs)
 # 
 # # ----------------------------------------------------------------------------
 # #                               (B)  - Resolution
@@ -141,6 +151,9 @@ rasterExportPath <- "Export_R/raster"
 # watercourses <- resample(watercourses,template_raster, method = "near")
 # lakes<- resample(lakes,template_raster, method = "near")
 # sdm <- resample(sdm,template_raster, method = "bilinear")
+# dem <- resample(dem, template_raster, method = "bilinear")
+# aspect <- resample(aspect, template_raster, method = "bilinear")
+# slope <- resample(slope, template_raster, method = "bilinear")
 # 
 # 
 # # ----------------------------------------------------------------------------
@@ -164,6 +177,9 @@ rasterExportPath <- "Export_R/raster"
 # watercourses_crop <- mask(crop (watercourses, ST_border), ST_border)
 # lakes_crop <- mask(crop (lakes, ST_border), ST_border)
 # sdm_crop <- mask(crop (sdm, ST_border), ST_border)
+# dem_crop <- mask(crop (dem, ST_border), ST_border)
+# aspect_crop <- mask(crop (aspect, ST_border), ST_border)
+# slope_crop <- mask(crop (slope, ST_border), ST_border)
 # 
 # # ----------------------------------------------------------------------------
 # # save all layers and in the future use them!
@@ -183,47 +199,49 @@ rasterExportPath <- "Export_R/raster"
 # writeRaster(watercourses_crop, file.path(rasterExportPath, "watercourses.tif"), overwrite = TRUE)
 # writeRaster(lakes_crop, file.path(rasterExportPath, "lakes.tif"), overwrite = TRUE)
 # writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
-# 
+# writeRaster(dem_crop, file.path(rasterExportPath, "dem.tif"), overwrite = TRUE)
+# writeRaster(aspect_crop, file.path(rasterExportPath, "aspect.tif"), overwrite = TRUE)
+# writeRaster(slope_crop, file.path(rasterExportPath, "slope.tif"), overwrite = TRUE)
 # 
 # ####### DISTANCE VARIABLES
 # 
 # # Human influence as distance from nearest town
-# humanInfluence[humanInfluence==0] <- NA 
+# humanInfluence[humanInfluence==0] <- NA
 # distance_humanInfluence <- distance(humanInfluence)
 # writeRaster(distance_humanInfluence, file.path(rasterExportPath, "distance_humanInfluence.tif"), overwrite = TRUE)
 # 
-# broadleave[broadleave==0] <- NA 
+# broadleave[broadleave==0] <- NA
 # distance_broadleave <- distance(broadleave)
 # writeRaster(distance_broadleave, file.path(rasterExportPath, "distance_broadleave.tif"), overwrite = TRUE)
 # 
-# coniferous[coniferous==0] <- NA 
+# coniferous[coniferous==0] <- NA
 # distance_coniferous <- distance(coniferous)
 # writeRaster(distance_coniferous, file.path(rasterExportPath, "distance_coniferous.tif"), overwrite = TRUE)
 # 
-# mixedForest[mixedForest==0] <- NA 
+# mixedForest[mixedForest==0] <- NA
 # distance_mixedForest <- distance(mixedForest)
 # writeRaster(distance_mixedForest, file.path(rasterExportPath, "distance_mixedForest.tif"), overwrite = TRUE)
 # 
-# transitionalLand[transitionalLand==0] <- NA 
+# transitionalLand[transitionalLand==0] <- NA
 # distance_transitionalLand <- distance(transitionalLand)
 # writeRaster(distance_transitionalLand, file.path(rasterExportPath, "distance_transitionalLand.tif"), overwrite = TRUE)
 # 
-# pastures[pastures==0] <- NA 
+# pastures[pastures==0] <- NA
 # distance_pastures <- distance(pastures)
 # writeRaster(distance_pastures, file.path(rasterExportPath, "distance_pastures.tif"), overwrite = TRUE)
 # 
-# grasslands[grasslands==0] <- NA 
+# grasslands[grasslands==0] <- NA
 # distance_grasslands <- distance(grasslands)
 # writeRaster(distance_grasslands, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
 # 
-# watercourses[watercourses==0] <- NA 
+# watercourses[watercourses==0] <- NA
 # distance_watercourses <- distance(grasslands)
 # writeRaster(distance_watercourses, file.path(rasterExportPath, "distance_watercourses.tif"), overwrite = TRUE)
 # 
-# lakes[lakes==0] <- NA 
+# lakes[lakes==0] <- NA
 # distance_lakes <- distance(lakes)
 # writeRaster(distance_lakes, file.path(rasterExportPath, "distance_lakes.tif"), overwrite = TRUE)
-
+# 
 
 
 ######
@@ -244,7 +262,10 @@ roadNetwork <- rast(file.path(rasterExportPath, "roadNetwork.tif"))
 humanInfluence <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
 watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
 lakes <- rast(file.path(rasterExportPath, "lakes.tif"))
-sdm <- rast("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carlas MacBook Air/dokumente/Uni/Master/second_year/year2_sem1/Com_EnvMan/Projectstudy/data/Export_R/raster/sdm.tif")
+sdm <- rast(file.path(rasterExportPath,"sdm.tif"))
+dem <- rast(file.path(rasterExportPath, "dem.tif"))
+aspect <- rast(file.path(rasterExportPath, "aspect.tif"))
+slope <- rast(file.path(rasterExportPath, "slope.tif"))
 
 # all DISTANCE files
 broadleave_dist <- rast(file.path(rasterExportPath, "distance_broadleave.tif"))
@@ -255,6 +276,7 @@ pastures_dist <- rast(file.path(rasterExportPath, "distance_pastures.tif"))
 grasslands_dist <- rast(file.path(rasterExportPath, "distance_grasslands.tif"))
 watercourses_dist <- rast(file.path(rasterExportPath, "distance_watercourses.tif"))
 lakes_dist <- rast(file.path(rasterExportPath, "distance_lakes.tif"))
+humanInfluence_dist <- rast(file.path(rasterExportPath, "distance_humanInfluence.tif"))
 
 
 # ----------------------------------------------------------------------------
@@ -289,15 +311,17 @@ grasslands_values <- as.factor(ifelse(grasslands_values == 1, "Yes", "No")) #bin
 roadType_values <- values(roadType)
 roadNetwork_values <- values(roadNetwork)
 roadNetwork_values <- as.factor(ifelse(roadNetwork_values == 1, "Yes", "No")) #binary data
-humanInfluence_values <- values(distance_humanInfluence)
+humanInfluence_values <- values(humanInfluence_dist)
 watercourses_values <- values(watercourses)
 watercourses_values <- as.factor(ifelse(watercourses_values == 1, "Yes", "No")) #binary data
 lakes_values <- values(lakes)
 lakes_values <- as.factor(ifelse(lakes_values == 1, "Yes", "No")) #binary data
 sdm_values <- values(sdm)
+dem_values <- values(dem)
+aspect_values <- values(aspect)
+slope_values <- values(slope)
 
 ####### EXTRACT DISTANCE VALUES
-humanInfluence_values <- values(distance_humanInfluence)
 broadleave_dist_values <- values(broadleave_dist)
 coniferous_dist_values <- values(coniferous_dist)
 mixedForest_dist_values <- values(mixedForest_dist)
@@ -321,25 +345,29 @@ levels(roadType_factor)
 # Create the data frame (without the binary variable roadKills (roadKills_values))
 df <- data.frame(roadKillsCount_values, broadleave_values,
                  coniferous_values, mixedForest_values, transitionalLand_values,
-                 pastures_values, grasslands_values, roadType_factor, roadNetwork_values,
-                 humanInfluence_values, watercourses_values, lakes_values, sdm_values)
+                 pastures_values, grasslands_values, roadType_factor, 
+                 roadNetwork_values,humanInfluence_values, watercourses_values, 
+                 lakes_values, sdm_values, dem_values, aspect_values, slope_values)
 
 # Assign column names
 colnames(df) <- c("Road_kills_Count", "Broadleave", "Coniferous", 
                   "Mixed_Forest", "Small_Woody_Features", "Pastures",
                   "Grasslands", "Road_Type", "Road_network", "Human_Influence", "Watercourses",
-                  "Lakes", "SDM")
+                  "Lakes", "SDM", "DEM", "aspect", "slope")
 
 # Create data frame with continuous distance values
 df_dist <- data.frame(roadKillsCount_values, broadleave_dist_values,
-                      coniferous_dist_values, mixedForest_dist_values, transitionalLand_dist_values,
-                      pastures_dist_values, grasslands_dist_values, roadType_factor, roadNetwork_values,
-                      humanInfluence_values, watercourses_dist_values, lakes_dist_values, sdm_values)
+                      coniferous_dist_values, mixedForest_dist_values, 
+                      transitionalLand_dist_values, pastures_dist_values, 
+                      grasslands_dist_values, roadType_factor, roadNetwork_values,
+                      humanInfluence_values, watercourses_dist_values, 
+                      lakes_dist_values, sdm_values, dem_values, aspect_values,
+                      slope_values)
 # Assign column names
 colnames(df_dist) <- c("Road_kills_Count", "Broadleave", "Coniferous", 
                   "Mixed_Forest", "Small_Woody_Features", "Pastures",
                   "Grasslands", "Road_Type", "Road_network", "Human_Influence", "Watercourses",
-                  "Lakes", "SDM")
+                  "Lakes", "SDM","DEM", "aspect", "slope")
 
 
 
@@ -420,9 +448,6 @@ hist(df_na$Human_Influence,
      xlab = "Distance to human settlements [m]",
      col = "lightblue")
 
-# COMMENT: quite a lot of data logically at 0, therefore filtered out. 
-# Plus an outlier: Bolzano with extremely high population density --> also filtered out
-
 ######## histograms of all my numeric variables
 lapply(names(df_dist_na)[sapply(df_dist_na, is.numeric)], function(var) {
   hist(df_dist_na[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
@@ -434,7 +459,7 @@ numeric_vars <- names(df_dist_na)[sapply(df_dist_na, is.numeric)]
 
 # Create scatterplots for each numeric predictor against the response variable
 lapply(numeric_vars, function(var) {
-  plot(df[[var]], df_dist_na$Road_kills_Count, main = paste("Scatterplot of", var, "vs Response"), 
+  plot(df_dist_na[[var]], df_dist_na$Road_kills_Count, main = paste("Scatterplot of", var, "vs Response"), 
        xlab = var, ylab = "Response Variable", col = "blue", pch = 16)
 })
 
@@ -455,12 +480,12 @@ library(car) # needed for the Anova() function, contains function vif(), which o
 # First model option without interaction and binary predictors
 mod1.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                   Small_Woody_Features + Pastures + Grasslands + Watercourses +
-                  Lakes + Human_Influence + Road_Type + SDM, 
+                  Lakes + Human_Influence + Road_Type + SDM + DEM + aspect + slope, 
                 data = df_na, 
                 family = poisson(link = "log"))
 mod2.counts <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                   Small_Woody_Features + Pastures + Grasslands + Watercourses +
-                  Lakes + Human_Influence + Road_Type + SDM, 
+                  Lakes + Human_Influence + Road_Type + SDM + DEM + aspect + slope, 
                 data = df_na, 
                 family = quasipoisson(link = "log"))
 
@@ -500,13 +525,14 @@ print(nzv)
 #...such as areas with no roads)
 mod.zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                       Small_Woody_Features + Pastures + Grasslands + Watercourses +
-                      Lakes  + Human_Influence + Road_Type + SDM | Road_network + SDM, 
+                      Lakes  + Human_Influence + Road_Type + SDM + DEM + aspect + slope 
+                    | Road_network + SDM + DEM + aspect + slope, 
                     data = df_na, 
                     dist = "poisson")
 summary(mod.zip)
 
 # compare AIC values (model fit)
-AIC(mod1.counts, mod.zip)
+# AIC(mod1.counts, mod.zip)
 
 
 # ----------------------------------------------------------------------------
@@ -516,7 +542,7 @@ library(emmeans)
 # Anova() allows estimating the "overall" contribution of each predictor.
 #  We use - and report - results of the Likelihood-ratio chi-square test (type III):
 # LR: Likelihood Ratio Test compares models by their likelihood
-Anova(mod.zip, type = "III",test ="LR") 
+# Anova(mod.zip, type = "III",test ="LR") 
 
 # ----------------------------------------------------------------------------
 #                   generate raster for resulting roadkill risk map
