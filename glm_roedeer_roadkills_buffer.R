@@ -550,8 +550,7 @@ summary(mod3.distance)
 dispersion.parameter <- mod3.distance$deviance / mod3.distance$df.residual
 dispersion.parameter
 
-# dispersion parameters a way too small --> UNDERDISPERSION
-# -->  zero-inflated models
+# Let's try out zero-inflated models
 
 
 # ----------------- (C) - check for near-zero variance -------------------------
