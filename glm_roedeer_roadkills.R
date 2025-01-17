@@ -541,32 +541,73 @@ dispersion.parameter <- mod2.counts$deviance / mod2.counts$df.residual
 dispersion.parameter
 
 # Let's try out zero-inflated models
-# Load required package
+
+
+# ----------------- (C) - check for near-zero variance -------------------------
+# is needed for zero inflated model, else it can cause numerical instability
+# check for near-zero variance:
+library(caret)
+nzv <- nearZeroVar(df_dist_na, saveMetrics = TRUE)
+print(nzv)
+# --> Road_network has near-zero variance
+
+# ----------------- (D) - check NaNs  ---------------------------------
+# Proportion of NaNs in each variable
+prop_slope_na <- sum(is.na(df_dist_na$slope)) / nrow(df_dist_na)
+prop_aspect_na <- sum(is.na(df_dist_na$aspect)) / nrow(df_dist_na)
+prop_dem_na <- sum(is.na(df_dist_na$DEM)) / nrow(df_dist_na)
+
+# Print the proportions
+prop_slope_na
+prop_aspect_na
+prop_dem_na
+
+# biggest proportion is 0.0019 (1333 pixels)
+# Solution: remove them
+
+df_dist_na_clean <- df_dist_na[complete.cases(df_dist_na$slope, df_dist_na$aspect, df_dist_na$DEM), ]
+
+# ----------------- (D) - check Multicollinearity ------------------------------
+# see below with the vif() function
+
+
+# ----------------------------------------------------------------------------
+#                                 Model selection
+# ----------------------------------------------------------------------------
+# Load required packages
 library(pscl)
 library(caret)
-# check for near-zero variance:
-nzv <- nearZeroVar(df_na, saveMetrics = TRUE)
-print(nzv)
+library(MASS)
+# in general a zero inlated model with poisson distribution was chosen
+# poisson due to counts, zero inflated due to many cells with 0
+
 
 # part behind | --> Explains structural zeros 
 #...(e.g., locations where road kills cannot occur due to unsuitable conditions, 
 #...such as areas with no roads)
 mod.zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                       Small_Woody_Features + Pastures + Grasslands + Watercourses +
-                      Lakes  + Human_Influence + Road_Type + SDM + DEM + aspect + slope 
-                    | Road_network + SDM + DEM + aspect + slope, 
+                      Lakes  + Human_Influence + Road_Type #+ SDM + DEM + aspect + slope       
+                    | Road_network,                                                        
                     data = df_dist_na, 
                     dist = "poisson")
 vif(mod.zip)
 summary(mod.zip)
 
+
+# model with binary variables
+mod.zip.binary <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
+                     Small_Woody_Features + Pastures + Grasslands + Watercourses +
+                     Lakes  + Human_Influence + Road_Type #+ DEM + aspect + slope       # AM ENDE SDM hinzufügen!!
+                   | Road_Type,                                                        # AM ENDE SDM hinzufügen!!
+                   data = df_na,
+                   dist = "poisson")
+
+vif(mod.zip.binary)
+summary(mod.zip.binary)
+
 # compare AIC values (model fit)
 AIC(mod1.counts, mod.zip) # mod.zip has the much better fit
-
-# ----------------------------------------------------------------------------
-#                                 Model selection
-# ----------------------------------------------------------------------------
-library(MASS)
 
 # stepwise selection
 step_model <- stepAIC(mod.zip, direction ="both", trace = TRUE)
