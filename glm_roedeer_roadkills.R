@@ -235,9 +235,9 @@ rasterExportPath <- "Export_R/raster"
 # writeRaster(distance_grasslands, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
 # 
 # watercourses[watercourses==0] <- NA
-# distance_watercourses <- distance(grasslands)
+# distance_watercourses <- distance(watercourses)
 # writeRaster(distance_watercourses, file.path(rasterExportPath, "distance_watercourses.tif"), overwrite = TRUE)
-# 
+#
 # lakes[lakes==0] <- NA
 # distance_lakes <- distance(lakes)
 # writeRaster(distance_lakes, file.path(rasterExportPath, "distance_lakes.tif"), overwrite = TRUE)
@@ -473,7 +473,35 @@ library(car) # needed for the Anova() function, contains function vif(), which o
 
 # ----------------- (A) - Independence of predictors ---------------------------
 # To find out: check by pairwise "correlations" among predictor values
+library(corrplot) 
 
+df_dist_na_numeric <- df_dist_na[sapply(df_dist_na, is.numeric)]
+cor_matrix <- cor(df_dist_na_numeric, method = "spearman", use = "pairwise.complete.obs") #spearman correltion to test for correlation
+colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
+
+par(mfrow=c(1,1))
+#show correlation plot
+corrplot(cor_matrix, 
+         method = "color",                     # Use color tiles for visualization
+         col = colors(200),                    # Apply your custom color palette
+         type = "upper",                       # Show only the upper triangle
+         order = "hclust",                     # Cluster variables based on correlations
+         addCoef.col = "black",                # Add correlation coefficients in black
+         number.cex = 0.7,                     # Adjust size of correlation numbers
+         tl.cex = 0.3,                         # Adjust size of text labels
+         title = "Spearman Correlation Matrix", # Add a title
+         mar = c(0, 0, 2, 0),                  # Adjust margins for the title
+         diag = FALSE                          # Do not show the diagonal
+)
+# Find variable pairs with |correlation| > 0.8
+high_corr_pairs <- which(abs(cor_matrix) > 0.8, arr.ind = TRUE)
+# Exclude self-correlations
+high_corr_pairs <- high_corr_pairs[high_corr_pairs[, 1] != high_corr_pairs[, 2], ]
+# Display highly correlated pairs
+print(high_corr_pairs) # yaaay! No highly correlated pairs!
+
+
+# ----------------- (B) - Dispersion parameter ---------------------------
 # To obtain model validation plots, We first need to calculate the glm
 # ... WITHOUT checking its statistical results!
 
@@ -527,12 +555,35 @@ mod.zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest +
                       Small_Woody_Features + Pastures + Grasslands + Watercourses +
                       Lakes  + Human_Influence + Road_Type + SDM + DEM + aspect + slope 
                     | Road_network + SDM + DEM + aspect + slope, 
-                    data = df_na, 
+                    data = df_dist_na, 
                     dist = "poisson")
+vif(mod.zip)
 summary(mod.zip)
 
 # compare AIC values (model fit)
-# AIC(mod1.counts, mod.zip)
+AIC(mod1.counts, mod.zip) # mod.zip has the much better fit
+
+# ----------------------------------------------------------------------------
+#                                 Model selection
+# ----------------------------------------------------------------------------
+library(MASS)
+
+# stepwise selection
+step_model <- stepAIC(mod.zip, direction ="both", trace = TRUE)
+summary(step_model)
+
+library(MuMIn)
+# selection by calculation of AIC for all combinations of predictors
+# Generate all model subsets
+model_set <- dredge(mod.zip, rank = "AIC")
+
+# View best models
+head(model_set)
+
+# Get the best model
+best_model <- get.models(model_set, subset = 1)[[1]]
+
+summary(best_model)
 
 
 # ----------------------------------------------------------------------------
