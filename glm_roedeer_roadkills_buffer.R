@@ -492,6 +492,13 @@ hist(df_na$Human_Influence,
      xlab = "Distance to human settlements [m]",
      col = "lightblue")
 
+# Count the frequency of each level in Road_Type
+road_type_counts <- table(df_dist_na_clean$Road_Type)
+
+# Create a bar plot of the counts
+barplot(road_type_counts, main = "Road Type Distribution", col = "skyblue", 
+        xlab = "Road Type", ylab = "Count")
+
 ######## histograms of all my numeric variables
 lapply(names(df_dist_na)[sapply(df_dist_na, is.numeric)], function(var) {
   hist(df_dist_na[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
@@ -621,6 +628,7 @@ prop_dem_na
 # Solution: remove them
 
 df_dist_na_clean <- df_dist_na[complete.cases(df_dist_na$slope, df_dist_na$aspect, df_dist_na$DEM), ]
+df_dist_na_clean <- droplevels(df_dist_na_clean)
 nzv <- nearZeroVar(df_dist_na_clean, saveMetrics = TRUE)
 print(nzv)
 # ----------------- (D) - check Multicollinearity ------------------------------
@@ -660,31 +668,21 @@ mod.zip2 <- glmmTMB(Road_kills_Count ~ Road_Type+Broadleave + Coniferous + Mixed
                       Lakes + Human_Influence+ DEM+ aspect + slope,
                     zi = ~Road_Type+ DEM+ aspect + slope,
                     family = "poisson",
-                    data = df_dist_na_clean)
+                    data = df_dist_na_clean,
+                    na.action = na.fail
+                    )
+diagnose(mod.zip2)
 summary(mod.zip2)
 
-# model with binary variables
-mod.zip.binary <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
-                     Small_Woody_Features + Pastures + Grasslands + Watercourses +
-                     Lakes  + Human_Influence + Road_Type #+ DEM + aspect + slope       # AM ENDE SDM hinzufügen!!
-                   | Road_Type,                                                        
-                   data = df_na,
-                   dist = "poisson")
-
-vif(mod.zip.binary)
-summary(mod.zip.binary)
-
-# compare AIC values (model fit)
-AIC(mod1.counts, mod.zip) # mod.zip has the much better fit
-
 # stepwise selection
-step_model <- stepAIC(mod.zip, direction ="both", trace = TRUE)
+step_model <- stepAIC(mod.zip2, direction ="both", trace = TRUE)
 summary(step_model)
+formula(step_model) # final model
 
 library(MuMIn)
 # selection by calculation of AIC for all combinations of predictors
 # Generate all model subsets
-model_set <- dredge(mod.zip, rank = "AIC")
+model_set <- dredge(mod.zip2, rank = "AIC")
 
 # View best models
 head(model_set)
