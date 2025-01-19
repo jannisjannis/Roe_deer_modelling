@@ -249,23 +249,23 @@ rasterExportPath <- "Export_R/raster"
 ######
 
 # # # Load all the files # # #
-roadKills <- rast(file.path(rasterExportPath, "roadKills.tif"))
-roadKillsCount <- rast(file.path(rasterExportPath, "roadKillsCount.tif"))
-broadleave <- rast(file.path(rasterExportPath, "broadleave.tif"))
-coniferous <- rast(file.path(rasterExportPath, "coniferous.tif"))
-mixedForest <- rast(file.path(rasterExportPath, "mixedForest.tif"))
-transitionalLand <- rast(file.path(rasterExportPath, "transitionalLand.tif"))
-pastures <- rast(file.path(rasterExportPath, "pastures.tif"))
-grasslands <- rast(file.path(rasterExportPath, "grasslands.tif"))
-roadType <- rast(file.path(rasterExportPath, "roadType.tif"))
-roadNetwork <- rast(file.path(rasterExportPath, "roadNetwork.tif"))
-humanInfluence <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
-watercourses <- rast(file.path(rasterExportPath, "watercourses.tif"))
-lakes <- rast(file.path(rasterExportPath, "lakes.tif"))
-sdm <- rast(file.path(rasterExportPath,"sdm.tif"))
-dem <- rast(file.path(rasterExportPath, "dem.tif"))
-aspect <- rast(file.path(rasterExportPath, "aspect.tif"))
-slope <- rast(file.path(rasterExportPath, "slope.tif"))
+roadKills_rast <- rast(file.path(rasterExportPath, "roadKills.tif"))
+roadKillsCount_rast  <- rast(file.path(rasterExportPath, "roadKillsCount.tif"))
+broadleave_rast  <- rast(file.path(rasterExportPath, "broadleave.tif"))
+coniferous_rast  <- rast(file.path(rasterExportPath, "coniferous.tif"))
+mixedForest_rast  <- rast(file.path(rasterExportPath, "mixedForest.tif"))
+transitionalLand_rast  <- rast(file.path(rasterExportPath, "transitionalLand.tif"))
+pastures_rast  <- rast(file.path(rasterExportPath, "pastures.tif"))
+grasslands_rast  <- rast(file.path(rasterExportPath, "grasslands.tif"))
+roadType_rast  <- rast(file.path(rasterExportPath, "roadType.tif"))
+roadNetwork_rast  <- rast(file.path(rasterExportPath, "roadNetwork.tif"))
+humanInfluence_rast  <- rast(file.path(rasterExportPath, "humanInfluence.tif"))
+watercourses_rast  <- rast(file.path(rasterExportPath, "watercourses.tif"))
+lakes_rast  <- rast(file.path(rasterExportPath, "lakes.tif"))
+sdm_rast  <- rast(file.path(rasterExportPath,"sdm.tif"))
+dem_rast  <- rast(file.path(rasterExportPath, "dem.tif"))
+aspect_rast  <- rast(file.path(rasterExportPath, "aspect.tif"))
+slope_rast  <- rast(file.path(rasterExportPath, "slope.tif"))
 
 # all DISTANCE files
 broadleave_dist <- rast(file.path(rasterExportPath, "distance_broadleave.tif"))
@@ -293,33 +293,33 @@ library(ggplot2) # needed for some graphs
 # ----------------- (1) Extract values from rasters
 # Extract values and raster names
 
-roadKills_values <- values(roadKills)
+roadKills_values <- values(roadKills_rast)
 roadKills_values <- as.factor(ifelse(roadKills_values == 1, "Yes", "No")) #binary data
-roadKillsCount_values <- as.integer(values(roadKillsCount))
-broadleave_values <- values(broadleave)
+roadKillsCount_values <- as.integer(values(roadKillsCount_rast ))
+broadleave_values <- values(broadleave_rast)
 broadleave_values <- as.factor(ifelse(broadleave_values == 1, "Yes", "No")) #binary data
-coniferous_values <- values(coniferous)
+coniferous_values <- values(coniferous_rast)
 coniferous_values <- as.factor(ifelse(coniferous_values == 2, "Yes", "No")) #binary data
-mixedForest_values <- values(mixedForest)
+mixedForest_values <- values(mixedForest_rast)
 mixedForest_values <- as.factor(ifelse(mixedForest_values == 25, "Yes", "No")) #binary data
-transitionalLand_values <- values(transitionalLand)
+transitionalLand_values <- values(transitionalLand_rast)
 transitionalLand_values <- as.factor(ifelse(transitionalLand_values == 1, "Yes", "No")) #binary data
-pastures_values <- values(pastures)
+pastures_values <- values(pastures_rast)
 pastures_values <- as.factor(ifelse(pastures_values == 18, "Yes", "No")) #binary data
-grasslands_values <- values(grasslands)
+grasslands_values <- values(grasslands_rast)
 grasslands_values <- as.factor(ifelse(grasslands_values == 1, "Yes", "No")) #binary data
-roadType_values <- values(roadType)
-roadNetwork_values <- values(roadNetwork)
+roadType_values <- values(roadType_rast)
+roadNetwork_values <- values(roadNetwork_rast)
 roadNetwork_values <- as.factor(ifelse(roadNetwork_values == 1, "Yes", "No")) #binary data
 humanInfluence_values <- values(humanInfluence_dist)
-watercourses_values <- values(watercourses)
+watercourses_values <- values(watercourses_rast)
 watercourses_values <- as.factor(ifelse(watercourses_values == 1, "Yes", "No")) #binary data
-lakes_values <- values(lakes)
+lakes_values <- values(lakes_rast)
 lakes_values <- as.factor(ifelse(lakes_values == 1, "Yes", "No")) #binary data
-sdm_values <- values(sdm)
-dem_values <- values(dem)
-aspect_values <- values(aspect)
-slope_values <- values(slope)
+sdm_values <- values(sdm_rast)
+dem_values <- values(dem_rast)
+aspect_values <- values(aspect_rast)
+slope_values <- values(slope_rast)
 
 ####### EXTRACT DISTANCE VALUES
 broadleave_dist_values <- values(broadleave_dist)
@@ -600,10 +600,18 @@ mod.zip <- zeroinfl(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest +
                       Small_Woody_Features + Pastures + Grasslands + Watercourses +
                       Lakes  + Human_Influence + Road_Type + SDM + DEM + aspect + slope       
                     | SDM + DEM + aspect + slope                                                        
-                    data = df_dist_na, 
+                    data = df_dist_na_clean, 
                     dist = "poisson")
 vif(mod.zip)
 summary(mod.zip)
+
+mod.zip2 <- glmmTMB(Road_kills_Count ~ Road_Type+Broadleave + Coniferous + Mixed_Forest+ 
+                      Small_Woody_Features + Pastures + Grasslands + Watercourses+
+                      Lakes + Human_Influence+ DEM + aspect + slope,
+                    zi = ~Road_Type + DEM + aspect + slope,
+                    family = "poisson",
+                    data = df_dist_na_clean)
+summary(mod.zip2)
 
 
 # model with binary variables
