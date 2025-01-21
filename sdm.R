@@ -173,7 +173,7 @@ env_stack <- env_stack[[names(env_stack) != "dem_alps_100m"]]
 env_stack <- env_stack[[names(env_stack) != "bio1"]]
 names(env_stack)
 
-#### read and thin presence data ####
+#### Read in presence data ####
 presence_data <- import("Rehe_Unfall_und_Abschuss.csv", header = TRUE)
 
 colnames(presence_data)[colnames(presence_data) == "GPS (lat)"] <- "lat"
@@ -216,7 +216,7 @@ presence_data_biomod$species <- "Roe_deer"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "y_25832"] <- "y"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "x"
 
-#Thin Dataset down from the 52.900 occurences
+#### Thin Presence Dataset down from the 52.900 occurences ####
 r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
 r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
 unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
@@ -225,6 +225,19 @@ thinned_occurence_data <- as.data.frame(crds(unique_points))
 thinned_occurence_data$presence <- 1
 thinned_occurence_data$species <- "Roe_deer"
 
+occur_thin <- thin(
+  loc.data = presence_data_biomod,
+  lat.col = "x",
+  long.col = "y",
+  spec.col = "species",
+  thin.par = 1,
+  reps = 1,
+  write.files = TRUE,
+  out.dir = "Layer/",
+  out.base = "thinned_data"
+)
+.Machine$sizeof.pointer
+memory.limit()  # This will display the current memory limit
 
 #### Format data and generate pseudo-absences ####
 myBiomodData_r <- BIOMOD_FormatingData(
