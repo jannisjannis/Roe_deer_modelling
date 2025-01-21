@@ -55,6 +55,14 @@ rasters_tmin <- rast(paste0("Tmin_raster/Tmin_mean_clipped_", 1:12, ".tif"))
 Tmin_annual_temp <- sum(rasters_tmin) / 12
 #writeRaster(Tmin_annual_temp, "Tmin_raster/Tmin_annual_temp_southtyrol.tif", overwrite = TRUE)
 
+#### clc raster creation ####
+clc_raster <- rast("Layer/CLC_clip.tif")
+# Extract cells with values 1, 2, 3, and 4
+# Create a mask where these values are retained
+desired_values <- c(1, 2, 3, 4)
+clc_1234 <- ifel(clc_raster %in% desired_values, 1, 0)#writeRaster(clc_1234, "Layer/clc_1234.tif", overwrite = TRUE)
+#plot(clc_1234)
+
 #### set CRS ####
 dem <- rast("dem_alps_100m.tif")
 aspect <- rast("Layer/aspect.tif")
@@ -78,8 +86,8 @@ bio12 <- project(bio12, target_crs)
 bio19 <- project(bio19, target_crs)
 forest_cover <- project(forest_cover, target_crs)
 grassland_cover <- project(grassland_cover, target_crs)
+clc_cover <- project(clc_1234, target_crs)
 crs(heat_map)
-
 
 #### Match resolutions of the layers ####
 #we start with downscaling the climate variables from 1km2 to 100m2
@@ -94,6 +102,7 @@ bio11_100m <- resample(bio11, template_raster, method = "bilinear")
 bio12_100m <- resample(bio12, template_raster, method = "bilinear")
 bio19_100m <- resample(bio19, template_raster, method = "bilinear")
 heat_map_100m <- resample(heat_map, template_raster, method = "bilinear")
+clc_100m <- resample(clc_cover, template_raster, method = "bilinear")
 
 forest_cover_100m <- aggregate(forest_cover, fact = 10, fun = mean) #factor 10 due to grid size before is 10m
 forest_cover_100m_aligned <- resample(forest_cover_100m, template_raster, method = "bilinear")
@@ -116,6 +125,11 @@ bio19_crop <- mask(crop(bio19_100m, border_southtyrol), border_southtyrol)
 forest_cover_crop <- mask(crop(forest_cover_100m_aligned, border_southtyrol), border_southtyrol)
 grassland_cover_crop <- mask(crop(grassland_cover_100m_aligned, border_southtyrol), border_southtyrol)
 heat_map_crop <- mask(crop(heat_map_100m, border_southtyrol), border_southtyrol)
+clc_crop <- mask(crop(clc_100m, border_southtyrol), border_southtyrol)
+
+# due to the realignment the raster it not binary anymore. we make it binary again with values < 0.3 are 0
+clc_crop_binary <- ifel(clc_crop < 0.5, 0, 1)
+
 #### Save aligned rasters ####
 writeRaster(dem_crop, "aligned_rasters/dem_100m.tif", overwrite = TRUE)
 writeRaster(aspect_crop, "aligned_rasters/aspect_100m.tif", overwrite = TRUE)
@@ -128,6 +142,7 @@ writeRaster(bio19_crop, "aligned_rasters/bio19_100m.tif", overwrite = TRUE)
 writeRaster(forest_cover_crop, "aligned_rasters/forest_cover_100m.tif", overwrite = TRUE)
 writeRaster(grassland_cover_crop, "aligned_rasters/grassland_cover_100m.tif", overwrite = TRUE)
 writeRaster(heat_map_crop, "aligned_rasters/heat_map_100m.tif", overwrite = TRUE)
+writeRaster(clc_crop_binary, "aligned_rasters/clc_binary_100m.tif", overwrite = TRUE)
 
 #### Read in Aligned rasters ####
 dem <- rast("aligned_rasters/dem_100m.tif")
@@ -141,9 +156,9 @@ bio19 <-rast("aligned_rasters/bio19_100m.tif")
 forest_cover <- rast("aligned_rasters/forest_cover_100m.tif")
 grassland_cover <- rast("aligned_rasters/grassland_cover_100m.tif")
 heat_map <- rast("aligned_rasters/heat_map_100m.tif")
-
+human_settlement <- rast("aligned_rasters/clc_binary_100m.tif")
 #### Test for correlation ####
-env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover, heat_map)
+env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover, heat_map, human_settlement)
 
 env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
 cor_matrix <- cor(env_values, method = "spearman") #spearman correltion to test for correlation
@@ -230,14 +245,12 @@ occur_thin <- thin(
   lat.col = "x",
   long.col = "y",
   spec.col = "species",
-  thin.par = 1,
+  thin.par = 10,
   reps = 1,
   write.files = TRUE,
   out.dir = "Layer/",
   out.base = "thinned_data"
 )
-.Machine$sizeof.pointer
-memory.limit()  # This will display the current memory limit
 
 #### Format data and generate pseudo-absences ####
 myBiomodData_r <- BIOMOD_FormatingData(
