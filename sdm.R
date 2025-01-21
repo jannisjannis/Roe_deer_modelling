@@ -66,6 +66,7 @@ bio12 <-rast("Layer/bio12.tif")
 bio19 <-rast("Layer/bio19.tif")
 forest_cover <- rast("Layer/FTY_2018_010m_03035_V1_0.tif")
 grassland_cover <- rast("Layer/GRA_2018_010m_03035_V1_0.tif")
+heat_map <- rast("Layer/heatmap_filled.tif")
 
 #set EPSG:25832 as target crs into which we want to reproject all other layers
 target_crs <- crs(dem)
@@ -77,6 +78,8 @@ bio12 <- project(bio12, target_crs)
 bio19 <- project(bio19, target_crs)
 forest_cover <- project(forest_cover, target_crs)
 grassland_cover <- project(grassland_cover, target_crs)
+crs(heat_map)
+
 
 #### Match resolutions of the layers ####
 #we start with downscaling the climate variables from 1km2 to 100m2
@@ -90,6 +93,7 @@ bio2_100m <- resample(bio2, template_raster, method = "bilinear")
 bio11_100m <- resample(bio11, template_raster, method = "bilinear")
 bio12_100m <- resample(bio12, template_raster, method = "bilinear")
 bio19_100m <- resample(bio19, template_raster, method = "bilinear")
+heat_map_100m <- resample(heat_map, template_raster, method = "bilinear")
 
 forest_cover_100m <- aggregate(forest_cover, fact = 10, fun = mean) #factor 10 due to grid size before is 10m
 forest_cover_100m_aligned <- resample(forest_cover_100m, template_raster, method = "bilinear")
@@ -111,7 +115,7 @@ bio12_crop <- mask(crop(bio12_100m, border_southtyrol), border_southtyrol)
 bio19_crop <- mask(crop(bio19_100m, border_southtyrol), border_southtyrol)
 forest_cover_crop <- mask(crop(forest_cover_100m_aligned, border_southtyrol), border_southtyrol)
 grassland_cover_crop <- mask(crop(grassland_cover_100m_aligned, border_southtyrol), border_southtyrol)
-
+heat_map_crop <- mask(crop(heat_map_100m, border_southtyrol), border_southtyrol)
 #### Save aligned rasters ####
 writeRaster(dem_crop, "aligned_rasters/dem_100m.tif", overwrite = TRUE)
 writeRaster(aspect_crop, "aligned_rasters/aspect_100m.tif", overwrite = TRUE)
@@ -123,6 +127,7 @@ writeRaster(bio12_crop, "aligned_rasters/bio12_100m.tif", overwrite = TRUE)
 writeRaster(bio19_crop, "aligned_rasters/bio19_100m.tif", overwrite = TRUE)
 writeRaster(forest_cover_crop, "aligned_rasters/forest_cover_100m.tif", overwrite = TRUE)
 writeRaster(grassland_cover_crop, "aligned_rasters/grassland_cover_100m.tif", overwrite = TRUE)
+writeRaster(heat_map_crop, "aligned_rasters/heat_map_100m.tif", overwrite = TRUE)
 
 #### Read in Aligned rasters ####
 dem <- rast("aligned_rasters/dem_100m.tif")
@@ -135,10 +140,10 @@ bio12 <-rast("aligned_rasters/bio12_100m.tif")
 bio19 <-rast("aligned_rasters/bio19_100m.tif")
 forest_cover <- rast("aligned_rasters/forest_cover_100m.tif")
 grassland_cover <- rast("aligned_rasters/grassland_cover_100m.tif")
+heat_map <- rast("aligned_rasters/heat_map_100m.tif")
 
-env_stack <- c(aspect, slope, bio2, bio11, bio19, forest_cover, grassland_cover)
 #### Test for correlation ####
-env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover)
+env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover, heat_map)
 
 env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
 cor_matrix <- cor(env_values, method = "spearman") #spearman correltion to test for correlation
@@ -223,9 +228,9 @@ thinned_occurence_data$species <- "Roe_deer"
 
 #### Format data and generate pseudo-absences ####
 myBiomodData_r <- BIOMOD_FormatingData(
-  resp.var = thinned_occurence_data$presence,           # Presence data
+  resp.var = presence_data_biomod$presence,           # Presence data
   expl.var = env_stack,                        # Environmental variables
-  resp.xy = thinned_occurence_data[, c("x", "y")],      # Coordinates of presences
+  resp.xy = presence_data_biomod[, c("x", "y")],      # Coordinates of presences
   resp.name = "Roe_deer",                      # Name of the species
   PA.nb.rep = 2,                               # Number of pseudo-absence replicates
   PA.nb.absences = 2000,                       # Number of pseudo-absences
@@ -275,4 +280,4 @@ biomod_projection <- BIOMOD_Projection(
 )
     
 proj_files <- get_predictions(biomod_projection)
-writeRaster(proj_files[[1]], filename = "species_distribution_RF.tif", overwrite = TRUE)
+writeRaster(proj_files[[1]], filename = "species_distribution_RF_2.tif", overwrite = TRUE)
