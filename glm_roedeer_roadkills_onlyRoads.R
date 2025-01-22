@@ -13,13 +13,10 @@ rm(list = ls())
 setwd("/Users/carlabehringer/iCloud Drive (Archive)/Documents/Documents – Carlas MacBook Air/dokumente/Uni/Master/second_year/year2_sem1/Com_EnvMan/Projectstudy/data")
 
 # install + load packages
-#install.packages("raster") # attention number of bands
-#install.packages("terra")
-library(raster)
 library(terra)
 
 ###############################################################################
-# Filepaths to export data
+# Filepaths to export and use data
 ###############################################################################
 rasterExportPath <- "Export_R/raster_dist_buf"
 
@@ -31,144 +28,144 @@ rasterExportPath <- "Export_R/raster_dist_buf"
 # Filepaths for data
 ###############################################################################
 
-# response variable
-roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
-
-## predictor variables
-BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-CforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-MixforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-transitionalLandFilePath = "forGLM/landcover/europe/clipped_30km/SWF_clip.tif"
-pasturesFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
-grasslandsFilePath = "forGLM/landcover/europe/clipped_30km/GRA_clip.tif"
-sdmFilePath = "variables_glm_clipped_ST_minus_NP/species_distribution_RF.tif"
-waterFilePath = "forGLM/landcover/europe/clipped_30km/WAW_clip.tif"
-roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
-roadNetworkFilePath = "GIS/relevant_roads_raster_10by10.tif"
-humansFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
-# predictor variables - topography
-demFilePath = "variables_glm_clipped_ST_minus_NP/dem_100m.tif"
-aspectFilePath = "variables_glm_clipped_ST_minus_NP/aspect_100m.tif"
-slopeFilePath = "variables_glm_clipped_ST_minus_NP/slope_100m.tif"
-
-# Extent files (South Tyrol - NP, road buffer)
-ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
-roads_buffer_vector_FilePath ="GIS/100mBuffer_roads_clip.shp"
-
-
-# # # # Load all the files # # #
-
-roadKillsCount <- rast(roadKillCountsFilePath)
-
-
-broadleave_unmasked <- rast(BLforestFilePath)
-broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
-
-coniferous_unmasked <- rast(CforestFilePath)
-coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
-
-mixedForest_unmasked <- rast(MixforestFilePath)
-mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 3, x, 0))
-
-transitionalLand_unmasked<- rast(transitionalLandFilePath)
-transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
-
-pastures_unmasked <- rast(pasturesFilePath)
-pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
-
-grasslands <- rast(grasslandsFilePath)
-roadType <- rast(roadTypeFilePath)
-
-humanInfluence_unmasked <- rast(humansFilePath)
-humanInfluence <- app(humanInfluence_unmasked, function(x) ifelse(x %in% c(1, 2, 3, 4), x, 0))
-
-water_unmasked <- rast(waterFilePath)
-water <- app(water_unmasked, function(x) ifelse(x == 1, x, 0))
-
-sdm <- rast(sdmFilePath)
-
-dem <- rast(demFilePath)
-aspect <- rast(aspectFilePath)
-slope <- rast(slopeFilePath)
-
-roads_buf_vect <- vect(roads_buffer_vector_FilePath)
-
-# ----------------------------------------------------------------------------
-# BEFORE checking assumptions and running the GLM
-# ----------------------------------------------------------------------------
-# Make sure that...
-# a. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
-# b. all layers have the same resolution (can be done in R) --> 100m by 100m
-# c. all layers have the same spatial extent (can be done in R, except if minimum
-#     extent is not given) --> border South Tyrol (not the one from NUTS!)
-
-# ----------------------------------------------------------------------------
-#                               (A)  - CRS
-
-# Define the target CRS
-target_crs <- "EPSG:25832"
-
-roadKillsCount <- project(roadKillsCount, target_crs)
-broadleave <- project(broadleave, target_crs)
-coniferous <- project(coniferous, target_crs)
-mixedForest <- project(mixedForest, target_crs)
-transitionalLand <- project(transitionalLand, target_crs)
-pastures <- project(pastures , target_crs)
-grasslands <- project(grasslands, target_crs)
-roadType <- project(roadType, target_crs)
-humanInfluence <- project(humanInfluence, target_crs)
-water <- project(water, target_crs)
-sdm <- project(sdm, target_crs)
-dem <- project(dem, target_crs)
-aspect <- project(aspect, target_crs)
-slope <- project(slope, target_crs)
-
-# ----------------------------------------------------------------------------
-#                               (B)  - Resolution
-
-# Define the target resolution (100 meters)
-target_res <- 100  # Target resolution in meters
-template_raster <- rast(roadKillCountsFilePath)  # Copy extent and CRS from the reference raster (roadKills)
-res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
-
-roadKillsCount <- resample(roadKillsCount,template_raster, method = "near")
-broadleave <- resample(broadleave,template_raster, method = "near")
-coniferous <- resample(coniferous,template_raster, method = "near")
-mixedForest <- resample(mixedForest,template_raster, method = "near")
-transitionalLand <- resample(transitionalLand,template_raster, method = "near")
-pastures <- resample(pastures,template_raster, method = "near")
-grasslands <- resample(grasslands,template_raster, method = "near")
-roadType <- resample(roadType,template_raster, method = "near")
-humanInfluence <- resample(humanInfluence,template_raster, method = "near")
-water <- resample(water,template_raster, method = "near")
-sdm <- resample(sdm,template_raster, method = "bilinear")
-dem <- resample(dem, template_raster, method = "bilinear")
-aspect <- resample(aspect, template_raster, method = "bilinear")
-slope <- resample(slope, template_raster, method = "bilinear")
-
-####### DISTANCE VARIABLES
-
-# Human influence as distance from urban fabric
-humanInfluence[humanInfluence==0] <- NA
-distance_humanInfluence <- distance(humanInfluence)
-
-broadleave[broadleave==0] <- NA
-distance_broadleave <- distance(broadleave)
-
-coniferous[coniferous==0] <- NA
-distance_coniferous <- distance(coniferous)
-
-mixedForest[mixedForest==0] <- NA
-distance_mixedForest <- distance(mixedForest)
-
-pastures[pastures==0] <- NA
-distance_pastures <- distance(pastures)
-
-grasslands[grasslands==0] <- NA
-distance_grasslands <- distance(grasslands)
-
-water[water==0] <- NA
-distance_water <- distance(water)
+# # response variable
+# roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
+# 
+# ## predictor variables
+# BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# CforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# MixforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# transitionalLandFilePath = "forGLM/landcover/europe/clipped_30km/SWF_clip.tif"
+# pasturesFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
+# grasslandsFilePath = "forGLM/landcover/europe/clipped_30km/GRA_clip.tif"
+# sdmFilePath = "variables_glm_clipped_ST_minus_NP/species_distribution_RF.tif"
+# waterFilePath = "forGLM/landcover/europe/clipped_30km/WAW_clip.tif"
+# roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
+# roadNetworkFilePath = "GIS/relevant_roads_raster_10by10.tif"
+# humansFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
+# # predictor variables - topography
+# demFilePath = "variables_glm_clipped_ST_minus_NP/dem_100m.tif"
+# aspectFilePath = "variables_glm_clipped_ST_minus_NP/aspect_100m.tif"
+# slopeFilePath = "variables_glm_clipped_ST_minus_NP/slope_100m.tif"
+# 
+# # Extent files (South Tyrol - NP, road buffer)
+# ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
+# roads_buffer_vector_FilePath ="GIS/100mBuffer_roads_clip.shp"
+# 
+# 
+# # # # # Load all the files # # #
+# 
+# roadKillsCount <- rast(roadKillCountsFilePath)
+# 
+# 
+# broadleave_unmasked <- rast(BLforestFilePath)
+# broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
+# 
+# coniferous_unmasked <- rast(CforestFilePath)
+# coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
+# 
+# mixedForest_unmasked <- rast(MixforestFilePath)
+# mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 3, x, 0))
+# 
+# transitionalLand_unmasked<- rast(transitionalLandFilePath)
+# transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
+# 
+# pastures_unmasked <- rast(pasturesFilePath)
+# pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
+# 
+# grasslands <- rast(grasslandsFilePath)
+# roadType <- rast(roadTypeFilePath)
+# 
+# humanInfluence_unmasked <- rast(humansFilePath)
+# humanInfluence <- app(humanInfluence_unmasked, function(x) ifelse(x %in% c(1, 2, 3, 4), x, 0))
+# 
+# water_unmasked <- rast(waterFilePath)
+# water <- app(water_unmasked, function(x) ifelse(x == 1, x, 0))
+# 
+# sdm <- rast(sdmFilePath)
+# 
+# dem <- rast(demFilePath)
+# aspect <- rast(aspectFilePath)
+# slope <- rast(slopeFilePath)
+# 
+# roads_buf_vect <- vect(roads_buffer_vector_FilePath)
+# 
+# # ----------------------------------------------------------------------------
+# # BEFORE checking assumptions and running the GLM
+# # ----------------------------------------------------------------------------
+# # Make sure that...
+# # a. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
+# # b. all layers have the same resolution (can be done in R) --> 100m by 100m
+# # c. all layers have the same spatial extent (can be done in R, except if minimum
+# #     extent is not given) --> border South Tyrol (not the one from NUTS!)
+# 
+# # ----------------------------------------------------------------------------
+# #                               (A)  - CRS
+# 
+# # Define the target CRS
+# target_crs <- "EPSG:25832"
+# 
+# roadKillsCount <- project(roadKillsCount, target_crs)
+# broadleave <- project(broadleave, target_crs)
+# coniferous <- project(coniferous, target_crs)
+# mixedForest <- project(mixedForest, target_crs)
+# transitionalLand <- project(transitionalLand, target_crs)
+# pastures <- project(pastures , target_crs)
+# grasslands <- project(grasslands, target_crs)
+# roadType <- project(roadType, target_crs)
+# humanInfluence <- project(humanInfluence, target_crs)
+# water <- project(water, target_crs)
+# sdm <- project(sdm, target_crs)
+# dem <- project(dem, target_crs)
+# aspect <- project(aspect, target_crs)
+# slope <- project(slope, target_crs)
+# 
+# # ----------------------------------------------------------------------------
+# #                               (B)  - Resolution
+# 
+# # Define the target resolution (100 meters)
+# target_res <- 100  # Target resolution in meters
+# template_raster <- rast(roadKillCountsFilePath)  # Copy extent and CRS from the reference raster (roadKills)
+# res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
+# 
+# roadKillsCount <- resample(roadKillsCount,template_raster, method = "near")
+# broadleave <- resample(broadleave,template_raster, method = "near")
+# coniferous <- resample(coniferous,template_raster, method = "near")
+# mixedForest <- resample(mixedForest,template_raster, method = "near")
+# transitionalLand <- resample(transitionalLand,template_raster, method = "near")
+# pastures <- resample(pastures,template_raster, method = "near")
+# grasslands <- resample(grasslands,template_raster, method = "near")
+# roadType <- resample(roadType,template_raster, method = "near")
+# humanInfluence <- resample(humanInfluence,template_raster, method = "near")
+# water <- resample(water,template_raster, method = "near")
+# sdm <- resample(sdm,template_raster, method = "bilinear")
+# dem <- resample(dem, template_raster, method = "bilinear")
+# aspect <- resample(aspect, template_raster, method = "bilinear")
+# slope <- resample(slope, template_raster, method = "bilinear")
+# 
+# ####### DISTANCE VARIABLES
+# 
+# # Human influence as distance from urban fabric
+# humanInfluence[humanInfluence==0] <- NA
+# distance_humanInfluence <- distance(humanInfluence)
+# 
+# broadleave[broadleave==0] <- NA
+# distance_broadleave <- distance(broadleave)
+# 
+# coniferous[coniferous==0] <- NA
+# distance_coniferous <- distance(coniferous)
+# 
+# mixedForest[mixedForest==0] <- NA
+# distance_mixedForest <- distance(mixedForest)
+# 
+# pastures[pastures==0] <- NA
+# distance_pastures <- distance(pastures)
+# 
+# grasslands[grasslands==0] <- NA
+# distance_grasslands <- distance(grasslands)
+# 
+# water[water==0] <- NA
+# distance_water <- distance(water)
 #
 #
 # # # ----------------------------------------------------------------------------
@@ -301,19 +298,21 @@ head(df_dist)
 # Remove rows where "Road kills Count" is NA or other variable is 
 df_dist_na <- na.omit(df_dist)
 head(df_dist_na)
+df_roads <- subset(df_dist_na, Road_Type != "No Road")
+df_roads$Road_Type <- droplevels(df_roads$Road_Type)
 
 # ------------------------- Make simple plots ----------------------------------
 ####                Boxplots for binary/factorial variables                 ####
 
 par(mfrow = c(1,1))
 boxplot(Road_kills_Count ~ Road_Type,
-        data = df_dist_na,
+        data = df_roads,
         # change axes labels
         xlab = "Road type",
         ylab = "Road kill count")
 
 # Count the frequency of each level in Road_Type
-road_type_counts <- table(df_dist_na$Road_Type)
+road_type_counts <- table(df_roads$Road_Type)
 
 # Create a bar plot of the counts
 barplot(road_type_counts, main = "Road Type Distribution", col = "skyblue", 
@@ -322,17 +321,17 @@ barplot(road_type_counts, main = "Road Type Distribution", col = "skyblue",
 ####                  Histogram for all numerical variables                     ####
 par(mfrow = c(2,2))
 
-lapply(names(df_dist_na)[sapply(df_dist_na, is.numeric)], function(var) {
-  hist(df_dist_na[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
+lapply(names(df_roads)[sapply(df_roads, is.numeric)], function(var) {
+  hist(df_roads[[var]], main = paste("Histogram of", var), xlab = var, col = "lightblue", breaks = 30)
 })
 
 ########          Scatterplots
 # List of numeric variables (excluding the response variable)
-numeric_vars <- names(df_dist_na)[sapply(df_dist_na, is.numeric)]
+numeric_vars <- names(df_roads)[sapply(df_dist_na, is.numeric)]
 
 # Create scatterplots for each numeric predictor against the response variable
 lapply(numeric_vars, function(var) {
-  plot(df_dist_na[[var]], df_dist_na$Road_kills_Count, main = paste("Scatterplot of", var, "vs Response"), 
+  plot(df_roads[[var]], df_roads$Road_kills_Count, main = paste("Scatterplot of", var, "vs Response"), 
        xlab = var, ylab = "Response Variable", col = "blue", pch = 16)
 })
 
@@ -346,8 +345,8 @@ library(car) # needed for the Anova() function, contains function vif(), which o
 # To find out: check by pairwise "correlations" among predictor values
 library(corrplot) 
 
-df_dist_na_numeric <- df_dist_na[sapply(df_dist_na, is.numeric)]
-cor_matrix <- cor(df_dist_na_numeric, method = "spearman", use = "pairwise.complete.obs") #spearman correltion to test for correlation
+df_roads_numeric <- df_roads[sapply(df_roads, is.numeric)]
+cor_matrix <- cor(df_roads_numeric, method = "spearman", use = "pairwise.complete.obs") #spearman correltion to test for correlation
 colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
 
 par(mfrow=c(1,1))
@@ -380,7 +379,7 @@ print(high_corr_pairs) # yaaay! No highly correlated pairs!
 mod1.poi <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
                   Small_Woody_Features + Pastures + Grasslands + Water + 
                   Human_Influence + Road_Type + DEM + aspect + slope,             # SDM HINZUFÜGEN
-                data = df_dist_na, 
+                data = df_roads, 
                 family = poisson(link = "log"))
 
 
@@ -409,7 +408,7 @@ dispersion.parameter # UNDERDISPERSION
 # is needed for zero inflated model, else it can cause numerical instability
 # check for near-zero variance:
 library(caret)
-nzv <- nearZeroVar(df_dist_na, saveMetrics = TRUE)
+nzv <- nearZeroVar(df_roads, saveMetrics = TRUE)
 print(nzv)
 # --> PREDICTOR has near-zero variance
 
@@ -432,12 +431,12 @@ library(glmmTMB)
 #...(e.g., locations where road kills cannot occur due to unsuitable conditions, 
 #...such as areas with no roads)
 mod.zip <- with(
-  df_dist_na, 
+  df_roads, 
   zeroinfl(
     Road_kills_Count ~ Broadleave + Coniferous + Mixed_Forest + 
       Small_Woody_Features + Pastures + Grasslands + Water+
-      Human_Influence + Road_Type + SDM + DEM + aspect + slope       
-    | SDM + DEM + aspect + slope,                                                         
+      Human_Influence + Road_Type + DEM + aspect + slope       
+    | + Road_Type + DEM + aspect + slope,                                                         
     dist = "poisson"
   )
 )
@@ -447,42 +446,11 @@ summary(mod.zip)
 mod.zip2 <- glmmTMB(Road_kills_Count ~ Road_Type+Broadleave + Coniferous + Mixed_Forest+ 
                       Small_Woody_Features + Pastures + Grasslands + Water+
                       Human_Influence+ DEM+ aspect + slope,
-                    zi = ~ DEM+ aspect + slope,
+                    zi = ~ Road_Type,
                     family = "poisson",
-                    data = df_dist_na,
+                    data = df_roads,
                     na.action = na.fail
                     )
 diagnose(mod.zip2)
 summary(mod.zip2)
 
-# stepwise selection
-step_model <- stepAIC(mod.zip2, direction ="both", trace = TRUE)
-summary(step_model)
-formula(step_model) # final model
-
-library(MuMIn)
-# selection by calculation of AIC for all combinations of predictors
-# Generate all model subsets
-model_set <- dredge(mod.zip2, rank = "AIC")
-
-# View best models
-head(model_set)
-
-# Get the best model
-best_model <- get.models(model_set, subset = 1)[[1]]
-
-summary(best_model)
-
-
-# ----------------------------------------------------------------------------
-#                                   glm - significance
-# ----------------------------------------------------------------------------
-library(emmeans)
-# Anova() allows estimating the "overall" contribution of each predictor.
-#  We use - and report - results of the Likelihood-ratio chi-square test (type III):
-# LR: Likelihood Ratio Test compares models by their likelihood
-# Anova(mod.zip, type = "III",test ="LR") 
-
-# ----------------------------------------------------------------------------
-#                   generate raster for resulting roadkill risk map
-# ----------------------------------------------------------------------------
