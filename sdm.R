@@ -8,6 +8,13 @@
 #install.packages("corrplot")
 #install.packages("randomForest")
 #install.packages("xgboost")
+#install.packages("dismo")
+#install.packages("nnet")
+#install.packages("mgcv")
+#install.packages("gbm")
+install.packages("gam")
+
+
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
 
 library(biomod2)
@@ -22,7 +29,12 @@ library(rio)
 library(corrplot)
 library(randomForest)
 library(xgboost)
-#skip to line 121 from here
+library(dismo)
+library(nnet)  
+library(mgcv)  
+library(gbm)
+library(gam)
+#skip to line 151 from here
 
 #### Worlclim raster layer creation ####
 #create precipitation sum per year raster for southtyrol
@@ -231,6 +243,11 @@ presence_data_biomod$species <- "Roe_deer"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "y_25832"] <- "y"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "x"
 
+#erstelle random subset von 10.000 punkten
+presence_data_biomod_subset <- presence_data_biomod[sample(nrow(presence_data_biomod), 5000), ]
+export(presence_data_biomod_subset, "presence_data_biomod_subset_5000.csv", overwrite = TRUE)
+
+
 #### Thin Presence Dataset down from the 52.900 occurences ####
 r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
 r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
@@ -241,27 +258,37 @@ thinned_occurence_data$presence <- 1
 thinned_occurence_data$species <- "Roe_deer"
 
 occur_thin <- thin(
-  loc.data = presence_data_biomod,
+  loc.data = presence_data_biomod_subset,
   lat.col = "x",
   long.col = "y",
   spec.col = "species",
-  thin.par = 10,
-  reps = 1,
+  thin.par = 1000,
+  reps = 5,
   write.files = TRUE,
   out.dir = "Layer/",
-  out.base = "thinned_data"
+  out.base = "thinned_data_1_home"
 )
 
 #### Format data and generate pseudo-absences ####
 myBiomodData_r <- BIOMOD_FormatingData(
-  resp.var = presence_data_biomod$presence,           # Presence data
+  resp.var = presence_data_biomod_subset$presence,           # Presence data
   expl.var = env_stack,                        # Environmental variables
-  resp.xy = presence_data_biomod[, c("x", "y")],      # Coordinates of presences
+  resp.xy = presence_data_biomod_subset[, c("x", "y")],      # Coordinates of presences
   resp.name = "Roe_deer",                      # Name of the species
-  PA.nb.rep = 2,                               # Number of pseudo-absence replicates
-  PA.nb.absences = 2000,                       # Number of pseudo-absences
-  PA.strategy = "random"                       # Strategy for generating pseudo-absences
+  PA.nb.rep = 1,                               # Number of pseudo-absence replicates
+  PA.nb.absences = 5000,                       # Number of pseudo-absences
+  PA.strategy = "sre", # Strategy for generating pseudo-absences
+  filter.raster = TRUE # Enable automatic filtering
 )
+
+#look at generated pseudo-absences
+# Extract the pseudo-absence table
+pseudo_absence_table <- myBiomodData_r@PA.table
+# Extract the coordinates (x, y) of pseudo-absences
+coordinates <- myBiomodData_r@coord
+# Combine the pseudo-absence data with coordinates
+pseudo_absence_data <- cbind(coordinates, pseudo_absence_table)
+write.csv(pseudo_absence_data, "pseudo_absences.csv", row.names = FALSE)
 
 plot(myBiomodData_r)
 # Cross validation & generating of calibration and validation datasets
@@ -276,9 +303,9 @@ plot(myBiomodData_r)
 biomod_model <- BIOMOD_Modeling(
   bm.format = myBiomodData_r,
   modeling.id = "Example",
-  models = c('RF', 'GLM'),
+  models = c('RF', 'GLM', 'ANN', 'GAM','XGBOOST', 'SRE'),
   CV.strategy = 'random',
-  CV.nb.rep = 2,
+  CV.nb.rep = 3,
   CV.perc = 0.8,
   OPT.strategy = 'bigboss',
   metric.eval = c('TSS','ROC'),
@@ -298,7 +325,7 @@ biomod_projection <- BIOMOD_Projection(
   bm.mod = biomod_model,
   new.env = env_stack,        # Your environmental variable stack
   proj.name = "species_projection",
-  selected.models = 'RF',    # You can specify models, e.g., RF or GLM
+  selected.models = c("Roe.deer_PA1_allRun_RF"),    # You can specify models, e.g., RF or GLM
   binary.meth = "TSS",        # Use a binary method based on TSS or ROC
   compress = FALSE,
   clamping.mask = FALSE,
@@ -306,4 +333,5 @@ biomod_projection <- BIOMOD_Projection(
 )
     
 proj_files <- get_predictions(biomod_projection)
-writeRaster(proj_files[[1]], filename = "species_distribution_RF_2.tif", overwrite = TRUE)
+rf_projection <- proj_files[["Roe.deer_PA1_allRun_RF"]]
+writeRaster(rf_projection, filename = "species_distribution_RF_final.tif", overwrite = TRUE)
