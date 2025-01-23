@@ -161,7 +161,7 @@ dem <- rast("aligned_rasters/dem_100m.tif")
 aspect <- rast("aligned_rasters/aspect_100m.tif")
 slope <- rast("aligned_rasters/slope_100m.tif")
 bio1 <-rast("aligned_rasters/bio1_100m.tif")
-bio2 <-rast("aligned_rasters/bio2_100m.tif")
+#bio2 <-rast("aligned_rasters/bio2_100m.tif")
 bio11 <-rast("aligned_rasters/bio11_100m.tif")
 bio12 <-rast("aligned_rasters/bio12_100m.tif")
 bio19 <-rast("aligned_rasters/bio19_100m.tif")
@@ -169,14 +169,23 @@ forest_cover <- rast("aligned_rasters/forest_cover_100m.tif")
 grassland_cover <- rast("aligned_rasters/grassland_cover_100m.tif")
 heat_map <- rast("aligned_rasters/heat_map_100m.tif")
 human_settlement <- rast("aligned_rasters/clc_binary_100m.tif")
+
 #### Test for correlation ####
-env_stack <- c(dem, aspect, slope, bio1, bio2, bio11, bio19, forest_cover, grassland_cover, heat_map, human_settlement)
+env_stack <- c(dem, aspect, slope, bio1, bio11, bio12, bio19, forest_cover, grassland_cover, heat_map, human_settlement)
 
 env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
-cor_matrix <- cor(env_values, method = "spearman") #spearman correltion to test for correlation
 colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
+colnames(env_values) <- c(
+  "DEM", "Aspect", "Slope", "Bio1", "Bio11", "Bio12", "Bio19", 
+  "ForestCover", "GrasslandCover", "HeatMap", "HumanSettlement")
 
-#show correlation plot
+#Col names with correlated parameters removed
+colnames(env_values) <- c(
+  "Aspect", "Slope", "Bio11", "Bio12",
+  "ForestCover", "GrasslandCover", "HeatMap", "HumanSettlement")
+
+cor_matrix <- cor(env_values, method = "spearman")
+
 corrplot(cor_matrix, 
          method = "color",                     # Use color tiles for visualization
          col = colors(200),                    # Apply your custom color palette
@@ -184,13 +193,14 @@ corrplot(cor_matrix,
          order = "hclust",                     # Cluster variables based on correlations
          addCoef.col = "black",                # Add correlation coefficients in black
          number.cex = 0.7,                     # Adjust size of correlation numbers
-         tl.cex = 0.3,                         # Adjust size of text labels
+         tl.cex = 0.7,                         # Adjust size of text labels
          title = "Spearman Correlation Matrix", # Add a title
          mar = c(0, 0, 2, 0),                  # Adjust margins for the title
          diag = FALSE                          # Do not show the diagonal
 )
+
 # Find variable pairs with |correlation| > 0.8
-high_corr_pairs <- which(abs(cor_matrix) > 0.8, arr.ind = TRUE)
+high_corr_pairs <- which(abs(cor_matrix) > 0.6, arr.ind = TRUE)
 # Exclude self-correlations
 high_corr_pairs <- high_corr_pairs[high_corr_pairs[, 1] != high_corr_pairs[, 2], ]
 # Display highly correlated pairs
@@ -198,10 +208,11 @@ print(high_corr_pairs)
 # -> therefore exclude dem_alps_100m and bio1
 env_stack <- env_stack[[names(env_stack) != "dem_alps_100m"]]
 env_stack <- env_stack[[names(env_stack) != "bio1"]]
+env_stack <- env_stack[[names(env_stack) != "bio19"]]
 names(env_stack)
 
 #### Read in presence data ####
-presence_data <- import("Rehe_Unfall_und_Abschuss.csv", header = TRUE)
+presence_data <- import("Rehwilddaten_punktverortet.csv", header = TRUE)
 
 colnames(presence_data)[colnames(presence_data) == "GPS (lat)"] <- "lat"
 colnames(presence_data)[colnames(presence_data) == "GPS (lng)"] <- "lon"
@@ -234,7 +245,6 @@ clipped_data <- as.data.frame(presence_25832_within_southtyrol)
 # Ensure the new coordinates are included in the data frame
 clipped_data$X_25832 <- crds(presence_25832_within_southtyrol)[, 1]  # X coordinate (EPSG:25832)
 clipped_data$y_25832 <- crds(presence_25832_within_southtyrol)[, 2]  # Y coordinate (EPSG:25832)
-#export(clipped_data, "Roedeer_within_ST_25832.csv")
 
 #create table for biomod2 with just x,y coordinates, the presence indicator and the species name
 presence_data_biomod <- clipped_data[, c("y_25832", "X_25832")]
@@ -242,38 +252,24 @@ presence_data_biomod$presence <- 1
 presence_data_biomod$species <- "Roe_deer"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "y_25832"] <- "y"
 colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "x"
+#export(presence_data_biomod, "Roedeer_within_ST_25832.csv")
 
-#erstelle random subset von 10.000 punkten
-presence_data_biomod_subset <- presence_data_biomod[sample(nrow(presence_data_biomod), 5000), ]
-export(presence_data_biomod_subset, "presence_data_biomod_subset_5000.csv", overwrite = TRUE)
+#erstelle random subset von 5.000 punkten
+set.seed(245) 
+presence_data_biomod_subset_5000 <- presence_data_biomod[sample(nrow(presence_data_biomod), 5000), ]
+export(presence_data_biomod_subset_5000, "presence_data_biomod_subset_5000.csv", overwrite = TRUE)
+
+#random subset with 10.000 points
+set.seed(513) 
+presence_data_biomod_subset_10000 <- presence_data_biomod[sample(nrow(presence_data_biomod), 10000), ]
+export(presence_data_biomod_subset_10000, "presence_data_biomod_subset_10000.csv", overwrite = TRUE)
 
 
-#### Thin Presence Dataset down from the 52.900 occurences ####
-r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
-r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
-unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
-#writeVector(unique_points, "Layer/thinned_occurence_data_1km.shp", overwrite = TRUE)
-thinned_occurence_data <- as.data.frame(crds(unique_points))
-thinned_occurence_data$presence <- 1
-thinned_occurence_data$species <- "Roe_deer"
-
-occur_thin <- thin(
-  loc.data = presence_data_biomod_subset,
-  lat.col = "x",
-  long.col = "y",
-  spec.col = "species",
-  thin.par = 1000,
-  reps = 5,
-  write.files = TRUE,
-  out.dir = "Layer/",
-  out.base = "thinned_data_1_home"
-)
-
-#### Format data and generate pseudo-absences ####
-myBiomodData_r <- BIOMOD_FormatingData(
-  resp.var = presence_data_biomod_subset$presence,           # Presence data
+#### Format data and generate pseudo-absences SRE 5000 points ####
+myBiomodData_r_sre_5000 <- BIOMOD_FormatingData(
+  resp.var = presence_data_biomod_subset_5000$presence,           # Presence data
   expl.var = env_stack,                        # Environmental variables
-  resp.xy = presence_data_biomod_subset[, c("x", "y")],      # Coordinates of presences
+  resp.xy = presence_data_biomod_subset_5000[, c("x", "y")],      # Coordinates of presences
   resp.name = "Roe_deer",                      # Name of the species
   PA.nb.rep = 1,                               # Number of pseudo-absence replicates
   PA.nb.absences = 5000,                       # Number of pseudo-absences
@@ -283,27 +279,108 @@ myBiomodData_r <- BIOMOD_FormatingData(
 
 #look at generated pseudo-absences
 # Extract the pseudo-absence table
-pseudo_absence_table <- myBiomodData_r@PA.table
+pseudo_absence_table_sre_5000 <- myBiomodData_r_sre_5000@PA.table
 # Extract the coordinates (x, y) of pseudo-absences
-coordinates <- myBiomodData_r@coord
+coordinates_sre_5000 <- myBiomodData_r_sre_5000@coord
 # Combine the pseudo-absence data with coordinates
-pseudo_absence_data <- cbind(coordinates, pseudo_absence_table)
-write.csv(pseudo_absence_data, "pseudo_absences.csv", row.names = FALSE)
+pseudo_absence_data_sre_5000 <- cbind(coordinates_sre_5000, pseudo_absence_table_sre_5000)
+write.csv(pseudo_absence_data_sre_5000, "pseudo_absences_sre_5000.csv", row.names = FALSE)
+plot(myBiomodData_r_sre_5000)
 
-plot(myBiomodData_r)
-# Cross validation & generating of calibration and validation datasets
-#cv.r.r <- bm_CrossValidation(bm.format = myBiomodData.r,
-                             #strategy = 'random',
-                             #nb.rep = 3,
-                             #perc = 0.7)
-#print(cv.r.r)
-#plot(myBiomodData.r, calib.lines = cv.r.r, plot.type = 'raster')
+#### Format data and generate pseudo-absences SRE 10.000 points ####
+myBiomodData_r_sre_10000 <- BIOMOD_FormatingData(
+  resp.var = presence_data_biomod_subset_10000$presence,           # Presence data
+  expl.var = env_stack,                        # Environmental variables
+  resp.xy = presence_data_biomod_subset_10000[, c("x", "y")],      # Coordinates of presences
+  resp.name = "Roe_deer",                      # Name of the species
+  PA.nb.rep = 1,                               # Number of pseudo-absence replicates
+  PA.nb.absences = 10000,                       # Number of pseudo-absences
+  PA.strategy = "sre", # Strategy for generating pseudo-absences
+  filter.raster = TRUE # Enable automatic filtering
+)
+
+#look at generated pseudo-absences
+# Extract the pseudo-absence table
+pseudo_absence_table_sre_10000 <- myBiomodData_r_sre_10000@PA.table
+# Extract the coordinates (x, y) of pseudo-absences
+coordinates_sre_10000 <- myBiomodData_r_sre_10000@coord
+# Combine the pseudo-absence data with coordinates
+pseudo_absence_data_sre_10000 <- cbind(coordinates_sre_10000, pseudo_absence_table_sre_10000)
+write.csv(pseudo_absence_data_sre_10000, "pseudo_absences_sre_10000.csv", row.names = FALSE)
+plot(myBiomodData_r__10000)
+
+#### Format data and generate pseudo-absences RANDOM 5000 points####
+myBiomodData_r_random_5000 <- BIOMOD_FormatingData(
+  resp.var = presence_data_biomod_subset_5000$presence,           # Presence data
+  expl.var = env_stack,                        # Environmental variables
+  resp.xy = presence_data_biomod_subset_5000[, c("x", "y")],      # Coordinates of presences
+  resp.name = "Roe_deer",                      # Name of the species
+  PA.nb.rep = 1,                               # Number of pseudo-absence replicates
+  PA.nb.absences = 5000,                       # Number of pseudo-absences
+  PA.strategy = "random", # Strategy for generating pseudo-absences
+  filter.raster = TRUE # Enable automatic filtering
+)
+
+#look at generated pseudo-absences
+# Extract the pseudo-absence table
+pseudo_absence_table_random_5000 <- myBiomodData_r_random_5000@PA.table
+# Extract the coordinates (x, y) of pseudo-absences
+coordinates_random_5000 <- myBiomodData_r_random_5000@coord
+# Combine the pseudo-absence data with coordinates
+pseudo_absence_data_random_5000 <- cbind(coordinates_random_5000, pseudo_absence_table_random_5000)
+write.csv(pseudo_absence_data_random_5000, "pseudo_absences_random_5000.csv", row.names = FALSE)
+plot(myBiomodData_r_random)
+
+#### Format data and generate pseudo-absences RANDOM 10.000 points####
+myBiomodData_r_random_10000 <- BIOMOD_FormatingData(
+  resp.var = presence_data_biomod_subset_10000$presence,           # Presence data
+  expl.var = env_stack,                        # Environmental variables
+  resp.xy = presence_data_biomod_subset_10000[, c("x", "y")],      # Coordinates of presences
+  resp.name = "Roe_deer",                      # Name of the species
+  PA.nb.rep = 1,                               # Number of pseudo-absence replicates
+  PA.nb.absences = 10000,                       # Number of pseudo-absences
+  PA.strategy = "random", # Strategy for generating pseudo-absences
+  filter.raster = TRUE # Enable automatic filtering
+)
+
+#look at generated pseudo-absences
+# Extract the pseudo-absence table
+pseudo_absence_table_random_10000 <- myBiomodData_r_random_10000@PA.table
+# Extract the coordinates (x, y) of pseudo-absences
+coordinates_random_10000 <- myBiomodData_r_random_10000@coord
+# Combine the pseudo-absence data with coordinates
+pseudo_absence_data_random_10000 <- cbind(coordinates_random_10000, pseudo_absence_table_random_10000)
+write.csv(pseudo_absence_data_random_10000, "pseudo_absences_random_10000.csv", row.names = FALSE)
+plot(myBiomodData_r_random)
+
+#### Thin Presence Dataset down from the 52.900 occurences -> not needed right now ####
+#r <- rast(ext(border_southtyrol), resolution = 1000, crs = "EPSG:25832") #Set the extent and resolution for the raster grid
+#r_points <- rasterize(presence_25832_within_southtyrol, r, fun = "first", background = NA) #Rasterize the points (assign each point to a grid cell)
+#unique_points <- as.points(r_points, na.rm = TRUE) #Extract unique points based on the raster cells
+#writeVector(unique_points, "Layer/thinned_occurence_data_1km.shp", overwrite = TRUE)
+#thinned_occurence_data <- as.data.frame(crds(unique_points))
+#thinned_occurence_data$presence <- 1
+#thinned_occurence_data$species <- "Roe_deer"
+
+#occur_thin <- thin(
+  #loc.data = presence_data_biomod_subset,
+  #lat.col = "x",
+  #long.col = "y",
+  #spec.col = "species",
+  #thin.par = 1000,--> not 
+  #reps = 5,
+  #write.files = TRUE,
+  #out.dir = "Layer/",
+  # = "thinned_data_1_home"
+#)
 
 #### Modelling ####
-biomod_model <- BIOMOD_Modeling(
-  bm.format = myBiomodData_r,
+#SRE_5000 modelling
+biomod_model_sre5000 <- BIOMOD_Modeling(
+  bm.format = myBiomodData_r_sre_5000,
   modeling.id = "Example",
-  models = c('RF', 'GLM', 'ANN', 'GAM','XGBOOST', 'SRE'),
+  models = c('RF'),
+  #models = c('RF', 'GLM', 'ANN', 'XGBOOST', 'SRE'),
   CV.strategy = 'random',
   CV.nb.rep = 3,
   CV.perc = 0.8,
@@ -312,20 +389,79 @@ biomod_model <- BIOMOD_Modeling(
   var.import = 2,
   seed.val = 42)
 
-biomod_model_scores <- get_evaluations(biomod_model)
-dim(biomod_model_scores)
-dimnames(biomod_model_scores) 
+biomod_model_scores_sre5000 <- get_evaluations(biomod_model_sre5000)
+dim(biomod_model_scores_sre5000)
+dimnames(biomod_model_scores_sre5000) 
+biomod_model_variable_importance_sre5000 <- get_variables_importance(biomod_model_sre5000)
+bm_PlotEvalBoxplot(bm.out = biomod_model_sre5000, group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model_sre5000, group.by = c('expl.var', 'algo', 'run'))
 
-biomod_model_variable_importance <- get_variables_importance(biomod_model)
-bm_PlotEvalBoxplot(bm.out = biomod_model, group.by = c('algo', 'run'))
-bm_PlotVarImpBoxplot(bm.out = biomod_model, group.by = c('expl.var', 'algo', 'run'))
-#looks like bio11 and forest cover are the best predictors
+#SRE_10000 modelling
+biomod_model_sre10000 <- BIOMOD_Modeling(
+  bm.format = myBiomodData_r_sre_10000,
+  modeling.id = "Example",
+  models = c('RF'),
+  CV.strategy = 'random',
+  CV.nb.rep = 3,
+  CV.perc = 0.8,
+  OPT.strategy = 'bigboss',
+  metric.eval = c('TSS','ROC'),
+  var.import = 2,
+  seed.val = 42)
+
+biomod_model_scores_sre10000 <- get_evaluations(biomod_model_sre10000)
+dim(biomod_model_scores_sre10000)
+dimnames(biomod_model_scores_sre10000) 
+biomod_model_variable_importance_sre10000 <- get_variables_importance(biomod_model_sre10000)
+bm_PlotEvalBoxplot(bm.out = biomod_model_sre10000, group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model_sre10000, group.by = c('expl.var', 'algo', 'run'))
+
+#random_5000 modelling
+biomod_model_random_5000 <- BIOMOD_Modeling(
+  bm.format = myBiomodData_r_random_5000 ,
+  modeling.id = "Example",
+  models = c('RF'),
+  CV.strategy = 'random',
+  CV.nb.rep = 3,
+  CV.perc = 0.8,
+  OPT.strategy = 'bigboss',
+  metric.eval = c('TSS','ROC'),
+  var.import = 2,
+  seed.val = 42)
+
+biomod_model_scores_random_5000  <- get_evaluations(biomod_model_random_5000 )
+dim(biomod_model_scores_random_5000 )
+dimnames(biomod_model_scores_random_5000 ) 
+biomod_model_variable_importance_random_5000  <- get_variables_importance(biomod_model_random_5000 )
+bm_PlotEvalBoxplot(bm.out = biomod_model_random_5000 , group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model_random_5000 , group.by = c('expl.var', 'algo', 'run'))
+
+#random_10000 modelling
+biomod_model_random_10000 <- BIOMOD_Modeling(
+  bm.format = myBiomodData_r_random_10000 ,
+  modeling.id = "Example",
+  models = c('RF'),
+  CV.strategy = 'random',
+  CV.nb.rep = 3,
+  CV.perc = 0.8,
+  OPT.strategy = 'bigboss',
+  metric.eval = c('TSS','ROC'),
+  var.import = 2,
+  seed.val = 42)
+
+biomod_model_scores_random_10000  <- get_evaluations(biomod_model_random_10000)
+dim(biomod_model_scores_random_10000)
+dimnames(biomod_model_scores_random_10000) 
+biomod_model_variable_importance_random_10000  <- get_variables_importance(biomod_model_random_10000)
+bm_PlotEvalBoxplot(bm.out = biomod_model_random_10000 , group.by = c('algo', 'run'))
+bm_PlotVarImpBoxplot(bm.out = biomod_model_random_10000 , group.by = c('expl.var', 'algo', 'run'))
+
 
 biomod_projection <- BIOMOD_Projection(
-  bm.mod = biomod_model,
+  bm.mod = biomod_model_sre5000,
   new.env = env_stack,        # Your environmental variable stack
   proj.name = "species_projection",
-  selected.models = c("Roe.deer_PA1_allRun_RF"),    # You can specify models, e.g., RF or GLM
+  selected.models = c("Roe.deer_PA1_Run1_RF"),    # You can specify models, e.g., RF or GLM
   binary.meth = "TSS",        # Use a binary method based on TSS or ROC
   compress = FALSE,
   clamping.mask = FALSE,
@@ -333,5 +469,23 @@ biomod_projection <- BIOMOD_Projection(
 )
     
 proj_files <- get_predictions(biomod_projection)
-rf_projection <- proj_files[["Roe.deer_PA1_allRun_RF"]]
-writeRaster(rf_projection, filename = "species_distribution_RF_final.tif", overwrite = TRUE)
+names(proj_files)
+rf_projection <- proj_files[["Roe.deer_PA1_RUN1_RF"]]
+writeRaster(rf_projection, filename = "species_distribution_sre_5000_pa1_run1_final.tif", overwrite = TRUE)
+
+# Corellation Heat_map and final model
+corr_den_sdm <- as.data.frame(c(rf_projection, heat_map), na.rm = TRUE) #extract values from rasters
+cor_matrix_sdm <- cor(corr_den_sdm, method = "spearman") #spearman correltion to test for correlation
+
+corrplot(cor_matrix_sdm, 
+         method = "color",                     # Use color tiles for visualization
+         col = colors(200),                    # Apply your custom color palette
+         type = "upper",                       # Show only the upper triangle
+         order = "hclust",                     # Cluster variables based on correlations
+         addCoef.col = "black",                # Add correlation coefficients in black
+         number.cex = 0.7,                     # Adjust size of correlation numbers
+         tl.cex = 0.5,                         # Adjust size of text labels
+         title = "Spearman Correlation Matrix", # Add a title
+         mar = c(0, 0, 2, 0),                  # Adjust margins for the title
+         diag = FALSE                          # Do not show the diagonal
+)
