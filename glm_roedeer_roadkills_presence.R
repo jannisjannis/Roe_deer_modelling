@@ -21,250 +21,250 @@ library(dplyr)
 ###############################################################################
 rasterExportPath <- "Export_R/final_rasters"
 
-######
-#############       SKIPPING OF CODE - S T A R T                    ##############
-######
-#
-###############################################################################
-# Filepaths for data
-###############################################################################
-
-# response variable
-roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
-
-## predictor variables
-BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-CforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-MixforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-transitionalLandFilePath = "forGLM/landcover/europe/clipped_30km/SWF_clip.tif"
-pasturesFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
-grasslandsFilePath = "forGLM/landcover/europe/clipped_30km/GRA_clip.tif"
-sdmFilePath = "forGLM/new_230125/species_distribution_sre_5000_pa1_run1_final.tif"
-waterFilePath = "forGLM/landcover/europe/clipped_30km/WAW_clip.tif"
-roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
-humansFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
-# predictor variables - topography
-demFilePath = "variables_glm_clipped_ST_minus_NP/dem_100m.tif"
-aspectFilePath = "variables_glm_clipped_ST_minus_NP/aspect_100m.tif"
-slopeFilePath = "variables_glm_clipped_ST_minus_NP/slope_100m.tif"
-# new variables
-RD_densityFilePath = "forGLM/new_230125/density_roedeer_r1km.tif"
-forestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
-roadNetworkFilePath = "forGLM/new_230125/road_network_total_rast.tif"
-road_densityFilePath = "forGLM/new_230125/road_density_multi1000.tif"
-
-
-
-# Extent files (South Tyrol - NP, road buffer)
-ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
-#roads_buffer_vector_FilePath ="GIS/100mBuffer_roads_clip.shp"
-
-# Rasterize the buffered relevant roads
-# Load your vector data
-roads_buf_vect <- vect("forGLM/new_230125/relevant_roads_buf20m.shp")
-
-# Define a raster template
-template <- rast(ext(roads_buf_vect), resolution = 100, crs = "EPSG:25832")
-
-# Rasterize the vector
-roads_buf_rast <- rasterize(roads_buf_vect, template, touches = TRUE)
-roads_buf_rast[is.na(roads_buf_rast)] <- 0
-
-plot(roads_buf_rast)
-
-
-# # # # Load all the files # # #
-
-roadKillsCount <- rast(roadKillCountsFilePath)
-
-
-broadleave_unmasked <- rast(BLforestFilePath)
-broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
-
-coniferous_unmasked <- rast(CforestFilePath)
-coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
-
-mixedForest_unmasked <- rast(MixforestFilePath)
-mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 3, x, 0))
-
-transitionalLand_unmasked<- rast(transitionalLandFilePath)
-transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
-
-pastures_unmasked <- rast(pasturesFilePath)
-pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
-
-grasslands <- rast(grasslandsFilePath)
-roadType <- rast(roadTypeFilePath)
-
-humanInfluence_unmasked <- rast(humansFilePath)
-humanInfluence <- app(humanInfluence_unmasked, function(x) ifelse(x %in% c(1, 2, 3, 4), x, 0))
-
-water_unmasked <- rast(waterFilePath)
-water <- app(water_unmasked, function(x) ifelse(x == 1, x, 0))
-
-sdm <- rast(sdmFilePath)
-
-dem <- rast(demFilePath)
-aspect <- rast(aspectFilePath)
-slope <- rast(slopeFilePath)
-
-#roads_buf_vect <- vect(roads_buffer_vector_FilePath)
-
-RD_density <- rast(RD_densityFilePath)
-
-forest_unmasked <- rast(forestFilePath)
-forest <- app(forest_unmasked, function(x) ifelse(x %in% c(1, 2, 3), x, 0))
-
-roadNetwork_unmasked <- rast(roadNetworkFilePath)
-roadNetwork <- app(roadNetwork_unmasked, function(x) ifelse(is.na(x), 0, x))
-
-roadDensity <- rast(road_densityFilePath)
-
-# ----------------------------------------------------------------------------
-# BEFORE checking assumptions and running the GLM
-# ----------------------------------------------------------------------------
-# Make sure that...
-# a. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
-# b. all layers have the same resolution (can be done in R) --> 100m by 100m
-# c. all layers have the same spatial extent (can be done in R, except if minimum
-#     extent is not given) --> border South Tyrol (not the one from NUTS!)
-
-# ----------------------------------------------------------------------------
-#                               (A)  - CRS
-
-# Define the target CRS
-target_crs <- "EPSG:25832"
-
-roadKillsCount <- project(roadKillsCount, target_crs)
-broadleave <- project(broadleave, target_crs)
-coniferous <- project(coniferous, target_crs)
-mixedForest <- project(mixedForest, target_crs)
-transitionalLand <- project(transitionalLand, target_crs)
-pastures <- project(pastures , target_crs)
-grasslands <- project(grasslands, target_crs)
-roadType <- project(roadType, target_crs)
-humanInfluence <- project(humanInfluence, target_crs)
-water <- project(water, target_crs)
-sdm <- project(sdm, target_crs)
-dem <- project(dem, target_crs)
-aspect <- project(aspect, target_crs)
-slope <- project(slope, target_crs)
-RD_density <- project(RD_density, target_crs)
-forest <- project(forest, target_crs)
-roadNetwork <- project(roadNetwork, target_crs)
-roadDensity <- project(roadDensity, target_crs)
-roadNetwork_buf <- project(roads_buf_rast, target_crs)
-
-# ----------------------------------------------------------------------------
-#                               (B)  - Resolution
-
-# Define the target resolution (100 meters)
-target_res <- 100  # Target resolution in meters
-template_raster <- rast(roadKillCountsFilePath)  # Copy extent and CRS from the reference raster (roadKills)
-res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
-
-roadKillsCount <- resample(roadKillsCount,template_raster, method = "near")
-broadleave <- resample(broadleave,template_raster, method = "near")
-coniferous <- resample(coniferous,template_raster, method = "near")
-mixedForest <- resample(mixedForest,template_raster, method = "near")
-transitionalLand <- resample(transitionalLand,template_raster, method = "near")
-pastures <- resample(pastures,template_raster, method = "near")
-grasslands <- resample(grasslands,template_raster, method = "near")
-roadType <- resample(roadType,template_raster, method = "near")
-humanInfluence <- resample(humanInfluence,template_raster, method = "near")
-water <- resample(water,template_raster, method = "near")
-sdm <- resample(sdm,template_raster, method = "bilinear")
-dem <- resample(dem, template_raster, method = "bilinear")
-aspect <- resample(aspect, template_raster, method = "bilinear")
-slope <- resample(slope, template_raster, method = "bilinear")
-RD_density <- resample(RD_density, template_raster, method = "bilinear")
-forest <- resample(forest,template_raster, method = "near")
-roadNetwork <- resample(roadNetwork,template_raster, method = "near")
-roadDensity <- resample(roadDensity,template_raster, method = "bilinear")
-roadNetwork_buf <-resample(roadNetwork_buf,template_raster, method = "near")
-
-####### DISTANCE VARIABLES
-
-# Human influence as distance from urban fabric
-humanInfluence[humanInfluence==0] <- NA
-distance_humanInfluence <- distance(humanInfluence)
-
-broadleave[broadleave==0] <- NA
-distance_broadleave <- distance(broadleave)
-
-coniferous[coniferous==0] <- NA
-distance_coniferous <- distance(coniferous)
-
-mixedForest[mixedForest==0] <- NA
-distance_mixedForest <- distance(mixedForest)
-
-pastures[pastures==0] <- NA
-distance_pastures <- distance(pastures)
-
-grasslands[grasslands==0] <- NA
-distance_grasslands <- distance(grasslands)
-
-water[water==0] <- NA
-distance_water <- distance(water)
-
-forest[forest==0] <- NA
-distance_forest <- distance(forest)
-
+# ######
+# #############       SKIPPING OF CODE - S T A R T                    ##############
+# ######
+# #
+# ###############################################################################
+# # Filepaths for data
+# ###############################################################################
+# 
+# # response variable
+# roadKillCountsFilePath = "GIS/roadKills_count_raster_res100.tif"
+# 
+# ## predictor variables
+# BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# CforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# MixforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# transitionalLandFilePath = "forGLM/landcover/europe/clipped_30km/SWF_clip.tif"
+# pasturesFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
+# grasslandsFilePath = "forGLM/landcover/europe/clipped_30km/GRA_clip.tif"
+# sdmFilePath = "forGLM/new_230125/species_distribution_sre_5000_pa1_run1_final.tif"
+# waterFilePath = "forGLM/landcover/europe/clipped_30km/WAW_clip.tif"
+# roadTypeFilePath = "variables_glm_clipped_ST_minus_NP/RoadType.tif"
+# humansFilePath = "forGLM/landcover/europe/clipped_30km/CLC_clip.tif"
+# # predictor variables - topography
+# demFilePath = "variables_glm_clipped_ST_minus_NP/dem_100m.tif"
+# aspectFilePath = "variables_glm_clipped_ST_minus_NP/aspect_100m.tif"
+# slopeFilePath = "variables_glm_clipped_ST_minus_NP/slope_100m.tif"
+# # new variables
+# RD_densityFilePath = "forGLM/new_230125/density_roedeer_r1km.tif"
+# forestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
+# roadNetworkFilePath = "forGLM/new_230125/road_network_total_rast.tif"
+# road_densityFilePath = "forGLM/new_230125/road_density_multi1000.tif"
+# 
+# 
+# 
+# # Extent files (South Tyrol - NP, road buffer)
+# ST_borderFilePath = "GIS/border_southTyrol_withoutNP.shp"
+# #roads_buffer_vector_FilePath ="GIS/100mBuffer_roads_clip.shp"
+# 
+# # Rasterize the buffered relevant roads
+# # Load your vector data
+# roads_buf_vect <- vect("forGLM/new_230125/relevant_roads_buf20m.shp")
+# 
+# # Define a raster template
+# template <- rast(ext(roads_buf_vect), resolution = 100, crs = "EPSG:25832")
+# 
+# # Rasterize the vector
+# roads_buf_rast <- rasterize(roads_buf_vect, template, touches = TRUE)
+# roads_buf_rast[is.na(roads_buf_rast)] <- 0
+# 
+# plot(roads_buf_rast)
+# 
+# 
+# # # # # Load all the files # # #
+# 
+# roadKillsCount <- rast(roadKillCountsFilePath)
+# 
+# 
+# broadleave_unmasked <- rast(BLforestFilePath)
+# broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
+# 
+# coniferous_unmasked <- rast(CforestFilePath)
+# coniferous <- app(coniferous_unmasked, function(x) ifelse(x == 2, x, 0))
+# 
+# mixedForest_unmasked <- rast(MixforestFilePath)
+# mixedForest <- app(mixedForest_unmasked, function(x) ifelse(x == 3, x, 0))
+# 
+# transitionalLand_unmasked<- rast(transitionalLandFilePath)
+# transitionalLand <- app(transitionalLand_unmasked, function(x) ifelse(is.na(x), 0, x))
+# 
+# pastures_unmasked <- rast(pasturesFilePath)
+# pastures <- app(pastures_unmasked, function(x) ifelse(x == 18, x, 0))
+# 
+# grasslands <- rast(grasslandsFilePath)
+# roadType <- rast(roadTypeFilePath)
+# 
+# humanInfluence_unmasked <- rast(humansFilePath)
+# humanInfluence <- app(humanInfluence_unmasked, function(x) ifelse(x %in% c(1, 2, 3, 4), x, 0))
+# 
+# water_unmasked <- rast(waterFilePath)
+# water <- app(water_unmasked, function(x) ifelse(x == 1, x, 0))
+# 
+# sdm <- rast(sdmFilePath)
+# 
+# dem <- rast(demFilePath)
+# aspect <- rast(aspectFilePath)
+# slope <- rast(slopeFilePath)
+# 
+# #roads_buf_vect <- vect(roads_buffer_vector_FilePath)
+# 
+# RD_density <- rast(RD_densityFilePath)
+# 
+# forest_unmasked <- rast(forestFilePath)
+# forest <- app(forest_unmasked, function(x) ifelse(x %in% c(1, 2, 3), x, 0))
+# 
+# roadNetwork_unmasked <- rast(roadNetworkFilePath)
+# roadNetwork <- app(roadNetwork_unmasked, function(x) ifelse(is.na(x), 0, x))
+# 
+# roadDensity <- rast(road_densityFilePath)
+# 
 # # ----------------------------------------------------------------------------
-# #                               (C)  - extent
-#
-#start with setting the vector layer of the roads buffer as extent we want to crop the other layers to
-# roads_buf_vect <- vect(roads_buffer_vector_FilePath)
-# crs(roads_buf_vect) <- target_crs
-ST_border <- vect(ST_borderFilePath)
-crs(ST_border) <- target_crs
-
-roadKillsCount_crop <- mask(crop (roadKillsCount, ST_border), ST_border)
-roadType_crop <- mask(crop (roadType, ST_border), ST_border)
-sdm_crop <- mask(crop (sdm, ST_border), ST_border)
-dem_crop <- mask(crop (dem, ST_border), ST_border)
-aspect_crop <- mask(crop (aspect, ST_border), ST_border)
-slope_crop <- mask(crop (slope, ST_border), ST_border)
-transitionalLand_crop <- mask(crop(transitionalLand, ST_border), ST_border)
-RD_density_crop <- mask(crop(RD_density, ST_border), ST_border)
-roadNetwork_crop <- mask(crop(roadNetwork, ST_border), ST_border)
-roadDensity_crop <- mask(crop(roadDensity, ST_border), ST_border)
-roadNetwork_buf_crop <- mask(crop(roadNetwork_buf, ST_border), ST_border)
-
-distance_humanInfluence_crop<- mask(crop (distance_humanInfluence, ST_border), ST_border)
-distance_broadleave_crop <- mask(crop (distance_broadleave, ST_border), ST_border)
-distance_coniferous_crop <- mask(crop (distance_coniferous, ST_border), ST_border)
-distance_mixedForest_crop <- mask(crop (distance_mixedForest, ST_border), ST_border)
-distance_pastures_crop <- mask(crop (distance_pastures, ST_border), ST_border)
-distance_grasslands_crop <- mask(crop (distance_grasslands, ST_border), ST_border)
-distance_water_crop <- mask(crop (distance_water, ST_border), ST_border)
-distance_forest_crop <- mask(crop (distance_forest, ST_border), ST_border)
-
-# ----------------------------------------------------------------------------
-# save all layers and in the future use them!
-# ----------------------------------------------------------------------------
-
-writeRaster(roadKillsCount_crop, file.path(rasterExportPath, "roadKillsCount.tif"), overwrite = TRUE)
-writeRaster(roadType_crop, file.path(rasterExportPath, "roadType.tif"), overwrite = TRUE)
-writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
-writeRaster(dem_crop, file.path(rasterExportPath, "dem.tif"), overwrite = TRUE)
-writeRaster(aspect_crop, file.path(rasterExportPath, "aspect.tif"), overwrite = TRUE)
-writeRaster(slope_crop, file.path(rasterExportPath, "slope.tif"), overwrite = TRUE)
-writeRaster(transitionalLand_crop, file.path(rasterExportPath, "transitionalLand.tif"), overwrite = TRUE)
-writeRaster(RD_density_crop, file.path(rasterExportPath, "RD_density.tif"), overwrite = TRUE)
-writeRaster(roadNetwork_crop, file.path(rasterExportPath, "roadNetwork.tif"), overwrite = TRUE)
-writeRaster(roadDensity_crop, file.path(rasterExportPath, "roadDensity.tif"), overwrite = TRUE)
-writeRaster(roadNetwork_buf_crop, file.path(rasterExportPath, "roadNetworkBuffered.tif"), overwrite = TRUE)
-
-# write distance rasters
-writeRaster(distance_humanInfluence_crop, file.path(rasterExportPath, "distance_humanInfluence.tif"), overwrite = TRUE)
-writeRaster(distance_broadleave_crop, file.path(rasterExportPath, "distance_broadleave.tif"), overwrite = TRUE)
-writeRaster(distance_coniferous_crop, file.path(rasterExportPath, "distance_coniferous.tif"), overwrite = TRUE)
-writeRaster(distance_mixedForest_crop, file.path(rasterExportPath, "distance_mixedForest.tif"), overwrite = TRUE)
-writeRaster(distance_pastures_crop, file.path(rasterExportPath, "distance_pastures.tif"), overwrite = TRUE)
-writeRaster(distance_grasslands_crop, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
-writeRaster(distance_water_crop, file.path(rasterExportPath, "distance_water.tif"), overwrite = TRUE)
-writeRaster(distance_forest_crop, file.path(rasterExportPath, "distance_forest.tif"), overwrite = TRUE)
+# # BEFORE checking assumptions and running the GLM
+# # ----------------------------------------------------------------------------
+# # Make sure that...
+# # a. all layers have the same CRS (can be made sure of in R) --> EPSG 25832
+# # b. all layers have the same resolution (can be done in R) --> 100m by 100m
+# # c. all layers have the same spatial extent (can be done in R, except if minimum
+# #     extent is not given) --> border South Tyrol (not the one from NUTS!)
+# 
+# # ----------------------------------------------------------------------------
+# #                               (A)  - CRS
+# 
+# # Define the target CRS
+# target_crs <- "EPSG:25832"
+# 
+# roadKillsCount <- project(roadKillsCount, target_crs)
+# broadleave <- project(broadleave, target_crs)
+# coniferous <- project(coniferous, target_crs)
+# mixedForest <- project(mixedForest, target_crs)
+# transitionalLand <- project(transitionalLand, target_crs)
+# pastures <- project(pastures , target_crs)
+# grasslands <- project(grasslands, target_crs)
+# roadType <- project(roadType, target_crs)
+# humanInfluence <- project(humanInfluence, target_crs)
+# water <- project(water, target_crs)
+# sdm <- project(sdm, target_crs)
+# dem <- project(dem, target_crs)
+# aspect <- project(aspect, target_crs)
+# slope <- project(slope, target_crs)
+# RD_density <- project(RD_density, target_crs)
+# forest <- project(forest, target_crs)
+# roadNetwork <- project(roadNetwork, target_crs)
+# roadDensity <- project(roadDensity, target_crs)
+# roadNetwork_buf <- project(roads_buf_rast, target_crs)
+# 
+# # ----------------------------------------------------------------------------
+# #                               (B)  - Resolution
+# 
+# # Define the target resolution (100 meters)
+# target_res <- 100  # Target resolution in meters
+# template_raster <- rast(roadKillCountsFilePath)  # Copy extent and CRS from the reference raster (roadKills)
+# res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
+# 
+# roadKillsCount <- resample(roadKillsCount,template_raster, method = "near")
+# broadleave <- resample(broadleave,template_raster, method = "near")
+# coniferous <- resample(coniferous,template_raster, method = "near")
+# mixedForest <- resample(mixedForest,template_raster, method = "near")
+# transitionalLand <- resample(transitionalLand,template_raster, method = "near")
+# pastures <- resample(pastures,template_raster, method = "near")
+# grasslands <- resample(grasslands,template_raster, method = "near")
+# roadType <- resample(roadType,template_raster, method = "near")
+# humanInfluence <- resample(humanInfluence,template_raster, method = "near")
+# water <- resample(water,template_raster, method = "near")
+# sdm <- resample(sdm,template_raster, method = "bilinear")
+# dem <- resample(dem, template_raster, method = "bilinear")
+# aspect <- resample(aspect, template_raster, method = "bilinear")
+# slope <- resample(slope, template_raster, method = "bilinear")
+# RD_density <- resample(RD_density, template_raster, method = "bilinear")
+# forest <- resample(forest,template_raster, method = "near")
+# roadNetwork <- resample(roadNetwork,template_raster, method = "near")
+# roadDensity <- resample(roadDensity,template_raster, method = "bilinear")
+# roadNetwork_buf <-resample(roadNetwork_buf,template_raster, method = "near")
+# 
+# ####### DISTANCE VARIABLES
+# 
+# # Human influence as distance from urban fabric
+# humanInfluence[humanInfluence==0] <- NA
+# distance_humanInfluence <- distance(humanInfluence)
+# 
+# broadleave[broadleave==0] <- NA
+# distance_broadleave <- distance(broadleave)
+# 
+# coniferous[coniferous==0] <- NA
+# distance_coniferous <- distance(coniferous)
+# 
+# mixedForest[mixedForest==0] <- NA
+# distance_mixedForest <- distance(mixedForest)
+# 
+# pastures[pastures==0] <- NA
+# distance_pastures <- distance(pastures)
+# 
+# grasslands[grasslands==0] <- NA
+# distance_grasslands <- distance(grasslands)
+# 
+# water[water==0] <- NA
+# distance_water <- distance(water)
+# 
+# forest[forest==0] <- NA
+# distance_forest <- distance(forest)
+# 
+# # # ----------------------------------------------------------------------------
+# # #                               (C)  - extent
+# #
+# #start with setting the vector layer of the roads buffer as extent we want to crop the other layers to
+# # roads_buf_vect <- vect(roads_buffer_vector_FilePath)
+# # crs(roads_buf_vect) <- target_crs
+# ST_border <- vect(ST_borderFilePath)
+# crs(ST_border) <- target_crs
+# 
+# roadKillsCount_crop <- mask(crop (roadKillsCount, ST_border), ST_border)
+# roadType_crop <- mask(crop (roadType, ST_border), ST_border)
+# sdm_crop <- mask(crop (sdm, ST_border), ST_border)
+# dem_crop <- mask(crop (dem, ST_border), ST_border)
+# aspect_crop <- mask(crop (aspect, ST_border), ST_border)
+# slope_crop <- mask(crop (slope, ST_border), ST_border)
+# transitionalLand_crop <- mask(crop(transitionalLand, ST_border), ST_border)
+# RD_density_crop <- mask(crop(RD_density, ST_border), ST_border)
+# roadNetwork_crop <- mask(crop(roadNetwork, ST_border), ST_border)
+# roadDensity_crop <- mask(crop(roadDensity, ST_border), ST_border)
+# roadNetwork_buf_crop <- mask(crop(roadNetwork_buf, ST_border), ST_border)
+# 
+# distance_humanInfluence_crop<- mask(crop (distance_humanInfluence, ST_border), ST_border)
+# distance_broadleave_crop <- mask(crop (distance_broadleave, ST_border), ST_border)
+# distance_coniferous_crop <- mask(crop (distance_coniferous, ST_border), ST_border)
+# distance_mixedForest_crop <- mask(crop (distance_mixedForest, ST_border), ST_border)
+# distance_pastures_crop <- mask(crop (distance_pastures, ST_border), ST_border)
+# distance_grasslands_crop <- mask(crop (distance_grasslands, ST_border), ST_border)
+# distance_water_crop <- mask(crop (distance_water, ST_border), ST_border)
+# distance_forest_crop <- mask(crop (distance_forest, ST_border), ST_border)
+# 
+# # ----------------------------------------------------------------------------
+# # save all layers and in the future use them!
+# # ----------------------------------------------------------------------------
+# 
+# writeRaster(roadKillsCount_crop, file.path(rasterExportPath, "roadKillsCount.tif"), overwrite = TRUE)
+# writeRaster(roadType_crop, file.path(rasterExportPath, "roadType.tif"), overwrite = TRUE)
+# writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
+# writeRaster(dem_crop, file.path(rasterExportPath, "dem.tif"), overwrite = TRUE)
+# writeRaster(aspect_crop, file.path(rasterExportPath, "aspect.tif"), overwrite = TRUE)
+# writeRaster(slope_crop, file.path(rasterExportPath, "slope.tif"), overwrite = TRUE)
+# writeRaster(transitionalLand_crop, file.path(rasterExportPath, "transitionalLand.tif"), overwrite = TRUE)
+# writeRaster(RD_density_crop, file.path(rasterExportPath, "RD_density.tif"), overwrite = TRUE)
+# writeRaster(roadNetwork_crop, file.path(rasterExportPath, "roadNetwork.tif"), overwrite = TRUE)
+# writeRaster(roadDensity_crop, file.path(rasterExportPath, "roadDensity.tif"), overwrite = TRUE)
+# writeRaster(roadNetwork_buf_crop, file.path(rasterExportPath, "roadNetworkBuffered.tif"), overwrite = TRUE)
+# 
+# # write distance rasters
+# writeRaster(distance_humanInfluence_crop, file.path(rasterExportPath, "distance_humanInfluence.tif"), overwrite = TRUE)
+# writeRaster(distance_broadleave_crop, file.path(rasterExportPath, "distance_broadleave.tif"), overwrite = TRUE)
+# writeRaster(distance_coniferous_crop, file.path(rasterExportPath, "distance_coniferous.tif"), overwrite = TRUE)
+# writeRaster(distance_mixedForest_crop, file.path(rasterExportPath, "distance_mixedForest.tif"), overwrite = TRUE)
+# writeRaster(distance_pastures_crop, file.path(rasterExportPath, "distance_pastures.tif"), overwrite = TRUE)
+# writeRaster(distance_grasslands_crop, file.path(rasterExportPath, "distance_grasslands.tif"), overwrite = TRUE)
+# writeRaster(distance_water_crop, file.path(rasterExportPath, "distance_water.tif"), overwrite = TRUE)
+# writeRaster(distance_forest_crop, file.path(rasterExportPath, "distance_forest.tif"), overwrite = TRUE)
 
 ######
 #############       SKIPPING OF CODE - E N D                    ##############
@@ -495,10 +495,9 @@ print(high_corr_pairs)
 # ... WITHOUT checking its statistical results!
 
 # Model WITHOUT roe deer density (Correlation)
-mod1.poi <- glm(Road_kills_Count ~  Broadleave + Coniferous + Mixed_Forest + 
-                  Small_Woody_Features + Pastures + Grasslands + Water + 
+mod1.poi <- glm(Road_kills_Count ~   Pastures + Grasslands + Water + 
                   Human_Influence + Road_Type + DEM + aspect + slope+ 
-                  Forest +SDM + Road_density, 
+                  Forest +SDM + Road_density, # Broadleave + Coniferous + Mixed_Forest + Small_Woody_Features +
                 data = df_roads_clean, 
                 family = poisson(link = "log"),
                 na.action = na.fail)
@@ -618,20 +617,20 @@ macFadden.pseudoR2.step
 
 Anova(step_model, type = "III")
 
-library(MuMIn)
-# selection by calculation of AIC for all combinations of predictors
-# Generate all model subsets
-model_set <- dredge(mod1.poi, rank = "AIC")
-
-# View best models
-head(model_set)
-
-# Get the best model
-best_model <- get.models(model_set, subset = 1)[[1]]
-
-summary(best_model)
-
-Anova(best_model, type = "III") 
+# library(MuMIn)
+# # selection by calculation of AIC for all combinations of predictors
+# # Generate all model subsets
+# model_set <- dredge(mod1.poi, rank = "AIC")
+# 
+# # View best models
+# head(model_set)
+# 
+# # Get the best model
+# best_model <- get.models(model_set, subset = 1)[[1]]
+# 
+# summary(best_model)
+# 
+# Anova(best_model, type = "III") 
 
 
 # Zero truncated model
@@ -661,3 +660,5 @@ df <- df.residual(mod1.ztp)
 # Calculate the dispersion parameter
 dispersion <- deviance / df
 dispersion
+
+
