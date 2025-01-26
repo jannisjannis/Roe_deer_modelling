@@ -30,7 +30,7 @@ rasterExportPath <- "Export_R/rasters_binomial_model"
 ###############################################################################
 
 # response variable
-roadKillBinomialFilePath = "GIS/pseudoAbsence/presence_absence_roadkills_random_rast.tif"
+roadKillBinomialFilePath = "GIS/pseudoAbsence/presence_absence_5000_random.shp"
 
 ## predictor variables
 BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
@@ -75,8 +75,15 @@ plot(roads_buf_rast)
 
 # # # # Load all the files # # #
 
-roadKills <- rast(roadKillBinomialFilePath)
+roadKills_vect <- vect(roadKillBinomialFilePath)
+# Extract coordinates using geom()
+coords <- geom(roadKills_vect)
+summary(coords)
 
+# Create an empty raster with desired resolution and extent
+r <- rast(ext = ext(roadKills_vect), res = 100, crs="EPSG:25832")
+
+roadKills <- rasterize(roadKills_vect, r, field="presence", fun = max)
 
 broadleave_unmasked <- rast(BLforestFilePath)
 broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
@@ -160,7 +167,7 @@ roadNetwork_buf <- project(roads_buf_rast, target_crs)
 
 # Define the target resolution (100 meters)
 target_res <- 100  # Target resolution in meters
-template_raster <- rast(roadKillBinomialFilePath)  # Copy extent and CRS from the reference raster (roadKills)
+template_raster <- roadKills  # Copy extent and CRS from the reference raster (roadKills)
 res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
 roadKills <- resample(roadKills,template_raster, method = "near")
@@ -336,7 +343,7 @@ roadType_factor <- factor(roadType_values,
                           levels = c("0", "1", "2", "3", "4", "5"),
                           labels = c("Other", "Highway", "State Road", 
                                      "Country Road", "Municipal Road", 
-                                     "Adress Road"))
+                                     "Address Road"))
 
 # Check the levels to confirm
 levels(roadType_factor)
@@ -361,11 +368,15 @@ colnames(df_dist) <- c("Road_kills", "Broadleave", "Coniferous",
 head(df_dist)
 
 # Remove rows where "Road kills Count" is NA or other variable is 
-df_dist_na <- na.omit(df_dist)
+#df_dist_na <- na.omit(df_dist)
+df_dist_na <- df_dist[!is.na(df_dist$Road_kill), ]
+
 head(df_dist_na)
 
 df_roads_yes <- subset(df_dist_na, df_dist_na$Road_Network != 0) # only all the kills on Roads (exclude unclear coordinated)
 df_clean <- subset(df_roads_yes, select = - Road_Network)
+sum(df_clean$Road_kill == 1)
+sum(df_clean$Road_kill == 0)
 
 # ------------------------- Make simple plots to check assumptions-------------
 
@@ -456,6 +467,8 @@ macFadden.pseudoR2
 # What the model believes:
 # mean value = data variance --> obs. / exp. dispersion = 1
 # True dispersion in the data: Deviance / df
+library(MASS)
+
 summary(mod1.binom)
 dispersion.parameter <- mod1.binom$deviance / mod1.binom$df.residual
 dispersion.parameter # 1.18
@@ -477,119 +490,270 @@ Anova(step_model, type = "III")
 # Required libraries
 library(ggplot2)
 library(ggeffects)
+library(gridExtra)
 
-par(mfrow=c(2,2))
+
 
 effect_data <- ggpredict(step_model, terms = c("Grasslands [all]"))  # Adjust for your predictors
-
-
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot1 <- ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "orange") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="yellow") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill = "orange") +
+  geom_point(data = df_clean, aes(x = Grasslands, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Distance to Grasslands [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Grasslands on Road Kill Risk")
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Distance to Grasslands on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 
-effect_data <- ggpredict(step_model, terms = c("Water [all]"))  # Adjust for your predictors
-# Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
-  geom_line(color = "blue") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="lightblue") +
-  labs(x = "Distance to Water [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Water on Road Kill Risk") +
-  theme_minimal()
+# effect_data <- ggpredict(step_model, terms = c("Water [all]"))  # Adjust for your predictors
+# # Plot predicted effects
+# plot2 <-ggplot(effect_data, aes(x = x, y = predicted)) +
+#   geom_line(color = "blue") +
+#   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="blue") +
+#   geom_point(data = df_clean, aes(x = Water, y = Road_kills), 
+#              color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+#   labs(x = "Distance to Water [m]", 
+#        y = "Predicted Roadkill Risk") +
+#   #title = "Effect of Distance to Water on Road Kill Risk") +
+#   theme_bw() +  # Apply theme first
+#   theme(
+#     axis.title = element_text(size = 16),  # Increase axis labels font size
+#     axis.text = element_text(size = 14)    # Increase axis ticks font size
+#   )+
+#   scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 
 effect_data <- ggpredict(step_model, terms = c("Human_Influence [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot3 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "red") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="orange") +
+  geom_point(data = df_clean, aes(x = Human_Influence, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Distance to Human Settlements [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Human Settlements on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Distance to Human Settlements on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("DEM [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot4 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "black") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="grey") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="gray25") +
+  geom_point(data = df_clean, aes(x = DEM, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Elevation [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Elevation on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Elevation on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("aspect [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot5 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "black") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="grey") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="gray25") +
+  geom_point(data = df_clean, aes(x = aspect, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Aspect [°]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Aspect on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Aspect on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("slope [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot6 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "black") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="grey") +
-  labs(x = "Slope [%]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Slope on Road Kill Risk") +
-  theme_minimal()
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="gray25") +
+  geom_point(data = df_clean, aes(x = slope, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+  labs(x = "Slope [°]", 
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Slope on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("SDM [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot7 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "chocolate4") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="chocolate") +
-  labs(x = "Slope [%]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Slope on Road Kill Risk") +
-  theme_minimal()
+  geom_point(data = df_clean, aes(x = SDM, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+  labs(x = "Habitat suitability", 
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Habitat suitability on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 effect_data <- ggpredict(step_model, terms = c("Broadleave [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot8 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "limegreen") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="lawngreen") +
+  geom_point(data = df_clean, aes(x = Broadleave, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Distance to Deciduous Forest [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Deciduous Forest on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Distance to Deciduous Forest on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("Coniferous [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot9 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "forestgreen") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="yellowgreen") +
+  geom_point(data = df_clean, aes(x = Coniferous, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Distance to Coniferous Forest [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Coniferous Forest on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk")+
+       #title = "Effect of Distance to Coniferous Forest on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
 
 effect_data <- ggpredict(step_model, terms = c("Mixed_Forest [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot10 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "olivedrab4") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="olivedrab1") +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="olivedrab4") +
+  geom_point(data = df_clean, aes(x = Mixed_Forest, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
   labs(x = "Distance to Mixed Forest [m]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Distance to Mixed Forest on Road Kill Risk") +
-  theme_minimal()
+       y = "Predicted Roadkill Risk") +
+  #title = "Effect of Distance to Mixed Forest on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 effect_data <- ggpredict(step_model, terms = c("Road_density [all]"))  # Adjust for your predictors
 # Plot predicted effects
-ggplot(effect_data, aes(x = x, y = predicted)) +
+plot11 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "deeppink4") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="deeppink3") +
-  labs(x = "Distance to Road density [??]", 
-       y = "Predicted Probability of Road Kills", 
-       title = "Effect of Road density on Road Kill Risk") +
-  theme_minimal()
+  geom_point(data = df_clean, aes(x = Road_density, y = Road_kills), 
+             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+  labs(x = expression("Road density [km/km"^2*"]"), 
+       y = "Predicted Roadkill Risk") +
+       #title = "Effect of Road density on Road Kill Risk") +
+  theme_bw() +  # Apply theme first
+  theme(
+    axis.title = element_text(size = 16),  # Increase axis labels font size
+    axis.text = element_text(size = 14)    # Increase axis ticks font size
+  )+
+  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+
+# Generate predicted values for Road_Type
+effect_data <- ggpredict(step_model, terms = "Road_Type")
+effect_data$x <- factor(effect_data$x, levels = c("Highway", "State Road","Country Road",  "Municipal Road", "Address Road", "Other"))
+
+# Dot plot of predictions
+dot_plot <- ggplot(effect_data, aes(x = x, y = predicted)) +
+  geom_point(size = 3, color = "chocolate4") +  # Predicted values as dots
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2, color = "chocolate4") +  # Confidence intervals
+  labs(x = "Road Type", 
+       y = "Predicted Roadkill Risk", 
+       title = "Predicted Roadkill Risk by Road Type") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    plot.title = element_text(size = 20, hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  )
+
+violin_plot <- ggplot(df_clean, aes(x = Road_Type, y = Road_kills)) +
+  geom_violin(fill = "darkblue", alpha = 0.5) +  # Violin for observed data
+  geom_point(data = effect_data, aes(x = x, y = predicted), 
+             color = "orange", size = 3, shape = 17, inherit.aes = FALSE) +  # Predicted probabilities
+  geom_errorbar(data = effect_data, aes(x = x, ymin = conf.low, ymax = conf.high), 
+                width = 0.2, color = "orange", inherit.aes = FALSE) +  # Confidence intervals
+  labs(x = "Road Type", 
+       y = "Roadkill Risk") +
+  theme_bw() +
+  theme(
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    plot.title = element_text(size = 20, hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  )
+
+
+
+all <- grid.arrange(plot1, plot3, plot4, plot5, plot6, plot7, plot8, plot9, plot10, plot11, 
+             ncol = 3, nrow = 4)
+
+vegetation <- grid.arrange(plot1, plot10, plot9, plot8, 
+             ncol = 2, nrow = 2)
+
+topography <- grid.arrange(plot4, plot5, plot6,
+             ncol = 3, nrow = 1)
+
+habitatandhumans <- grid.arrange(plot7, plot3, plot11, 
+             ncol = 2, nrow = 2)
+
+anthro <- grid.arrange(plot3, plot11, violin_plot,
+                       ncol = 3, nrow = 1)
+
+# Save the grid to a file
+export_pngPath <- "Export_R/figures/"
+
+ggsave(paste0(export_pngPath, "allPredictors.png"), all, width = 15, height = 15, dpi = 300)
+ggsave(paste0(export_pngPath, "vegetation.png"), vegetation, width = 12, height = 10, dpi = 300)
+ggsave(paste0(export_pngPath, "topography.png"), topography, width = 15, height = 5, dpi = 300)
+ggsave(paste0(export_pngPath, "habitatandhumans.png"), habitatandhumans, width = 15, height = 5, dpi = 300)
+ggsave(paste0(export_pngPath, "sdm.png"), plot7, width = 7, height = 6, dpi = 300)
+ggsave(paste0(export_pngPath, "anthro.png"), anthro, width = 15, height = 5, dpi = 300)
+ggsave(paste0(export_pngPath, "roadtype.png"), dot_plot, width = 9, height = 6, dpi = 300)
+ggsave(paste0(export_pngPath, "roadtype2.png"), violin_plot, width = 6, height = 6, dpi = 300)
+
+
+
+
