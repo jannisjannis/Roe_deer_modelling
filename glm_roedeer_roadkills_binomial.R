@@ -358,13 +358,13 @@ df_dist <- data.frame(roadKills_values, broadleave_dist_values,
                       transitionalLand_values, pastures_dist_values, 
                       grasslands_dist_values, roadType_factor,
                       humanInfluence_dist_values, water_dist_values, sdm_values, 
-                      dem_values, aspect_values, slope_values, RD_density_values,
+                      dem_values, slope_values, RD_density_values,
                       roadNetwork_values,forest_dist_values, roadDensity_values)
 # Assign column names
 colnames(df_dist) <- c("Road_kills", "Broadleave", "Coniferous", 
                   "Mixed_Forest", "Small_Woody_Features", "Pastures",
                   "Grasslands", "Road_Type", "Human_Influence", "Water", "SDM",
-                  "DEM", "aspect", "slope","Roe_deer_density", "Road_Network", 
+                  "DEM", "slope","Roe_deer_density", "Road_Network", 
                   "Forest", "Road_density")
 
 # Inspect the first few rows
@@ -387,7 +387,7 @@ sum(df_clean$Road_kill == 0)
 
 # List of continuous predictors
 continuous_predictors <- c("Pastures", "Grasslands", "Water", "DEM", 
-                           "aspect", "slope", "Forest", "SDM", 
+                            "slope", "Forest", "SDM", 
                            "Road_density", "Broadleave", "Coniferous", 
                            "Mixed_Forest", "Small_Woody_Features")
 
@@ -444,10 +444,10 @@ print(high_corr_pairs)
 # To obtain model validation plots, We first need to calculate the glm
 # ... WITHOUT checking its statistical results!
 
-# Model WITHOUT roe deer density (Correlation)
+# Model WITHOUT roe deer density and coniferous forest (Correlation)
 mod1.binom <- glm(Road_kills ~   Pastures + Grasslands + Water + 
-                  Human_Influence + Road_Type + DEM + aspect + slope +SDM + 
-                  Broadleave + Coniferous + Mixed_Forest + Small_Woody_Features
+                  Human_Influence + Road_Type + DEM + slope +SDM + 
+                  Broadleave + Forest + Mixed_Forest + Small_Woody_Features
                   + Road_density,
                 data = df_clean, 
                 family = binomial(link = "logit"),
@@ -486,6 +486,16 @@ macFadden.pseudoR2.step <- 1 - step_model$deviance / step_model$null.deviance
 macFadden.pseudoR2.step
 
 Anova(step_model, type = "III")
+
+mod3.forest <- glm(Road_kills ~   Pastures + Grasslands +
+                    Human_Influence + Road_Type + DEM + slope +SDM + 
+                    Forest+ Broadleave + Mixed_Forest+ Road_density,
+                  data = df_clean, 
+                  family = binomial(link = "logit"),
+                  na.action = na.fail)
+summary(mod3.forest)
+macFadden.pseudoR2.forest <- 1 - mod3.forest$deviance / mod3.forest$null.deviance
+macFadden.pseudoR2.forest
 
 # -----------------------------------------------------------------------------#
 #                                 GRAPHS
@@ -570,22 +580,22 @@ plot4 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 
-effect_data <- ggpredict(step_model, terms = c("aspect [all]"))  # Adjust for your predictors
-# Plot predicted effects
-plot5 <-ggplot(effect_data, aes(x = x, y = predicted)) +
-  geom_line(color = "black") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="gray25") +
-  geom_point(data = df_clean, aes(x = aspect, y = Road_kills), 
-             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
-  labs(x = "Aspect [°]", 
-       y = "Predicted Roadkill Risk") +
-  #title = "Effect of Aspect on Road Kill Risk") +
-  theme_bw() +  # Apply theme first
-  theme(
-    axis.title = element_text(size = 16),  # Increase axis labels font size
-    axis.text = element_text(size = 14)    # Increase axis ticks font size
-  )+
-  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+# effect_data <- ggpredict(step_model, terms = c("aspect [all]"))  # Adjust for your predictors
+# # Plot predicted effects
+# plot5 <-ggplot(effect_data, aes(x = x, y = predicted)) +
+#   geom_line(color = "black") +
+#   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="gray25") +
+#   geom_point(data = df_clean, aes(x = aspect, y = Road_kills), 
+#              color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+#   labs(x = "Aspect [°]", 
+#        y = "Predicted Roadkill Risk") +
+#   #title = "Effect of Aspect on Road Kill Risk") +
+#   theme_bw() +  # Apply theme first
+#   theme(
+#     axis.title = element_text(size = 16),  # Increase axis labels font size
+#     axis.text = element_text(size = 14)    # Increase axis ticks font size
+#   )+
+#   scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 
 effect_data <- ggpredict(step_model, terms = c("slope [all]"))  # Adjust for your predictors
@@ -623,34 +633,34 @@ plot7 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   )+
   scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
-effect_data <- ggpredict(step_model, terms = c("Broadleave [all]"))  # Adjust for your predictors
-# Plot predicted effects
-plot8 <-ggplot(effect_data, aes(x = x, y = predicted)) +
-  geom_line(color = "limegreen") +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="lawngreen") +
-  geom_point(data = df_clean, aes(x = Broadleave, y = Road_kills), 
-             color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
-  labs(x = "Distance to Deciduous Forest [m]", 
-       y = "Predicted Roadkill Risk") +
-  #title = "Effect of Distance to Deciduous Forest on Road Kill Risk") +
-  theme_bw() +  # Apply theme first
-  theme(
-    axis.title = element_text(size = 16),  # Increase axis labels font size
-    axis.text = element_text(size = 14)    # Increase axis ticks font size
-  )+
-  scale_y_continuous(limits = c(0, 1))  # Then apply scale
+# effect_data <- ggpredict(step_model, terms = c("Broadleave [all]"))  # Adjust for your predictors
+# # Plot predicted effects
+# plot8 <-ggplot(effect_data, aes(x = x, y = predicted)) +
+#   geom_line(color = "limegreen") +
+#   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="lawngreen") +
+#   geom_point(data = df_clean, aes(x = Broadleave, y = Road_kills), 
+#              color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
+#   labs(x = "Distance to Deciduous Forest [m]", 
+#        y = "Predicted Roadkill Risk") +
+#   #title = "Effect of Distance to Deciduous Forest on Road Kill Risk") +
+#   theme_bw() +  # Apply theme first
+#   theme(
+#     axis.title = element_text(size = 16),  # Increase axis labels font size
+#     axis.text = element_text(size = 14)    # Increase axis ticks font size
+#   )+
+#   scale_y_continuous(limits = c(0, 1))  # Then apply scale
 
 
-effect_data <- ggpredict(step_model, terms = c("Coniferous [all]"))  # Adjust for your predictors
+effect_data <- ggpredict(step_model, terms = c("Forest [all]"))  # Adjust for your predictors
 # Plot predicted effects
 plot9 <-ggplot(effect_data, aes(x = x, y = predicted)) +
   geom_line(color = "forestgreen") +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2, fill ="yellowgreen") +
   geom_point(data = df_clean, aes(x = Coniferous, y = Road_kills), 
              color = "grey", alpha = 0.5, size = 2) +  # Add actual data points
-  labs(x = "Distance to Coniferous Forest [m]", 
+  labs(x = "Distance to Forest [m]", 
        y = "Predicted Roadkill Risk")+
-       #title = "Effect of Distance to Coniferous Forest on Road Kill Risk") +
+       #title = "Effect of Distance to Forest on Road Kill Risk") +
   theme_bw() +  # Apply theme first
   theme(
     axis.title = element_text(size = 16),  # Increase axis labels font size
@@ -730,27 +740,27 @@ violin_plot <- ggplot(df_clean, aes(x = Road_Type, y = Road_kills)) +
 
 
 
-all <- grid.arrange(plot1, plot3, plot4, plot5, plot6, plot7, plot8, plot9, plot10, plot11, 
-             ncol = 3, nrow = 4)
+all <- grid.arrange(plot1, plot3, plot4, plot6, plot7, plot9, plot10, plot11, 
+             ncol = 3, nrow = 3)
 
-vegetation <- grid.arrange(plot1, plot10, plot9, plot8, 
-             ncol = 2, nrow = 2)
-
-topography <- grid.arrange(plot4, plot5, plot6,
+vegetation <- grid.arrange(plot1, plot10, plot9,
              ncol = 3, nrow = 1)
 
-habitatandhumans <- grid.arrange(plot7, plot3, plot11, 
-             ncol = 2, nrow = 2)
+topography <- grid.arrange(plot4, plot6,
+             ncol = 2, nrow = 1)
 
-anthro <- grid.arrange(plot3, plot11, violin_plot,
+habitatandhumans <- grid.arrange(plot7, plot3, plot11, 
+             ncol = 3, nrow = 1)
+
+anthro <- grid.arrange(plot3, plot11, dot_plot,
                        ncol = 3, nrow = 1)
 
 # Save the grid to a file
 export_pngPath <- "Export_R/figures/"
 
 ggsave(paste0(export_pngPath, "allPredictors.png"), all, width = 15, height = 15, dpi = 300)
-ggsave(paste0(export_pngPath, "vegetation.png"), vegetation, width = 12, height = 10, dpi = 300)
-ggsave(paste0(export_pngPath, "topography.png"), topography, width = 15, height = 5, dpi = 300)
+ggsave(paste0(export_pngPath, "vegetation.png"), vegetation, width = 15, height = 5, dpi = 300)
+ggsave(paste0(export_pngPath, "topography.png"), topography, width = 10, height = 5, dpi = 300)
 ggsave(paste0(export_pngPath, "habitatandhumans.png"), habitatandhumans, width = 15, height = 5, dpi = 300)
 ggsave(paste0(export_pngPath, "sdm.png"), plot7, width = 7, height = 6, dpi = 300)
 ggsave(paste0(export_pngPath, "anthro.png"), anthro, width = 15, height = 5, dpi = 300)
