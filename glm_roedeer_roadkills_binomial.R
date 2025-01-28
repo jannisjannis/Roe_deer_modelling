@@ -30,7 +30,7 @@ rasterExportPath <- "Export_R/rasters_binomial_model"
 ###############################################################################
 
 # response variable
-roadKillBinomialFilePath = "GIS/pseudoAbsence/presence_absence_5000_random.shp"
+roadKillBinomialFilePath = "GIS/pseudoAbsence/presence_absence_5000_random_rast.tif"
 
 ## predictor variables
 BLforestFilePath = "forGLM/landcover/europe/clipped_30km/FTY_clip.tif"
@@ -75,15 +75,17 @@ plot(roads_buf_rast)
 
 # # # # Load all the files # # #
 
-roadKills_vect <- vect(roadKillBinomialFilePath)
-# Extract coordinates using geom()
-coords <- geom(roadKills_vect)
-summary(coords)
+# roadKills_vect <- vect(roadKillBinomialFilePath)
+# # Extract coordinates using geom()
+# coords <- geom(roadKills_vect)
+# summary(coords)
+# 
+# # Create an empty raster with desired resolution and extent
+# r <- rast(ext = ext(roadKills_vect), res = 100, crs="EPSG:25832")
+# 
+# roadKills <- rasterize(roadKills_vect, r, field="presence", fun = max)
 
-# Create an empty raster with desired resolution and extent
-r <- rast(ext = ext(roadKills_vect), res = 100, crs="EPSG:25832")
-
-roadKills <- rasterize(roadKills_vect, r, field="presence", fun = max)
+roadKills <- rast(roadKillBinomialFilePath)
 
 broadleave_unmasked <- rast(BLforestFilePath)
 broadleave <- app(broadleave_unmasked, function(x) ifelse(x == 1, x, 0))
@@ -167,7 +169,8 @@ roadNetwork_buf <- project(roads_buf_rast, target_crs)
 
 # Define the target resolution (100 meters)
 target_res <- 100  # Target resolution in meters
-template_raster <- roadKills  # Copy extent and CRS from the reference raster (roadKills)
+ST_border <- vect(ST_borderFilePath)
+template_raster <-rast(ext = ST_border, res = 100, crs = "EPSG:25832")  # Copy extent and CRS from the reference raster (roadKills)
 res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
 roadKills <- resample(roadKills,template_raster, method = "near")
@@ -251,7 +254,7 @@ distance_forest_crop <- mask(crop (distance_forest, ST_border), ST_border)
 # save all layers and in the future use them!
 # ----------------------------------------------------------------------------
 
-writeRaster(roadKills_crop, file.path(rasterExportPath, "roadKillsCount.tif"), overwrite = TRUE)
+writeRaster(roadKills_crop, file.path(rasterExportPath, "roadKills.tif"), overwrite = TRUE)
 writeRaster(roadType_crop, file.path(rasterExportPath, "roadType.tif"), overwrite = TRUE)
 writeRaster(sdm_crop, file.path(rasterExportPath, "sdm.tif"), overwrite = TRUE)
 writeRaster(dem_crop, file.path(rasterExportPath, "dem.tif"), overwrite = TRUE)
@@ -278,7 +281,7 @@ writeRaster(distance_forest_crop, file.path(rasterExportPath, "distance_forest.t
 ######
 
 # # # Load all the files # # #
-roadKills_rast <- rast(file.path(rasterExportPath, "roadKillsCount.tif"))
+roadKills_rast <- rast(file.path(rasterExportPath, "roadKills.tif"))
 roadType_rast <- rast(file.path(rasterExportPath, "roadType.tif"))
 sdm_rast <- rast(file.path(rasterExportPath,"sdm.tif"))
 dem_rast <- rast(file.path(rasterExportPath, "dem.tif"))
