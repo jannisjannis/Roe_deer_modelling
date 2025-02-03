@@ -12,7 +12,7 @@
 #install.packages("nnet")
 #install.packages("mgcv")
 #install.packages("gbm")
-install.packages("gam")
+#install.packages("gam")
 
 
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
@@ -108,6 +108,7 @@ template_raster <- rast(dem)  # Copy extent and CRS from the reference raster (d
 res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
 # Step 3: Resample bio1 to match the template raster
+bio12_mm_per_year <- rast("Layer/bio12_mm_per_year.tif")
 bio1_100m <- resample(bio1, template_raster, method = "bilinear")
 bio2_100m <- resample(bio2, template_raster, method = "bilinear")
 bio11_100m <- resample(bio11, template_raster, method = "bilinear")
@@ -139,6 +140,7 @@ grassland_cover_crop <- mask(crop(grassland_cover_100m_aligned, border_southtyro
 heat_map_crop <- mask(crop(heat_map_100m, border_southtyrol), border_southtyrol)
 clc_crop <- mask(crop(clc_100m, border_southtyrol), border_southtyrol)
 
+bio12_mm_per_year_crop <- mask(crop(bio12_mm_per_year, border_southtyrol), border_southtyrol)
 # due to the realignment the raster it not binary anymore. we make it binary again with values < 0.3 are 0
 clc_crop_binary <- ifel(clc_crop < 0.5, 0, 1)
 
@@ -156,6 +158,8 @@ writeRaster(grassland_cover_crop, "aligned_rasters/grassland_cover_100m.tif", ov
 writeRaster(heat_map_crop, "aligned_rasters/heat_map_100m.tif", overwrite = TRUE)
 writeRaster(clc_crop_binary, "aligned_rasters/clc_binary_100m.tif", overwrite = TRUE)
 
+writeRaster(bio12_mm_per_year_crop, "aligned_rasters/bio12_mm_per_year_crop.tif", overwrite = TRUE)
+
 #### Read in Aligned rasters ####
 dem <- rast("aligned_rasters/dem_100m.tif")
 aspect <- rast("aligned_rasters/aspect_100m.tif")
@@ -171,13 +175,13 @@ heat_map <- rast("aligned_rasters/heat_map_100m.tif")
 human_settlement <- rast("aligned_rasters/clc_binary_100m.tif")
 
 #### Test for correlation ####
-env_stack <- c(dem, aspect, slope, bio1, bio11, bio12, bio19, forest_cover, grassland_cover, heat_map, human_settlement)
+env_stack <- c(dem, aspect, slope, bio1, bio11, bio12, bio19, forest_cover, grassland_cover, human_settlement)
 
 env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
 colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
 colnames(env_values) <- c(
   "DEM", "Aspect", "Slope", "Bio1", "Bio11", "Bio12", "Bio19", 
-  "ForestCover", "GrasslandCover", "HeatMap", "HumanSettlement")
+  "ForestCover", "GrasslandCover", "HumanSettlement")
 
 #Col names with correlated parameters removed
 colnames(env_values) <- c(
@@ -461,7 +465,7 @@ biomod_projection <- BIOMOD_Projection(
   bm.mod = biomod_model_sre5000,
   new.env = env_stack,        # Your environmental variable stack
   proj.name = "species_projection",
-  selected.models = c("Roe.deer_PA1_Run1_RF"),    # You can specify models, e.g., RF or GLM
+  selected.models = c("Roe.deer_PA1_Run3_RF"),    # You can specify models, e.g., RF or GLM
   binary.meth = "TSS",        # Use a binary method based on TSS or ROC
   compress = FALSE,
   clamping.mask = FALSE,
@@ -470,8 +474,8 @@ biomod_projection <- BIOMOD_Projection(
     
 proj_files <- get_predictions(biomod_projection)
 names(proj_files)
-rf_projection <- proj_files[["Roe.deer_PA1_RUN1_RF"]]
-writeRaster(rf_projection, filename = "species_distribution_sre_5000_pa1_run1_final.tif", overwrite = TRUE)
+rf_projection <- proj_files[["Roe.deer_PA1_RUN3_RF"]]
+writeRaster(rf_projection, filename = "species_distribution_sre_5000_pa1_run3_final.tif", overwrite = TRUE)
 
 # Corellation Heat_map and final model
 corr_den_sdm <- as.data.frame(c(rf_projection, heat_map), na.rm = TRUE) #extract values from rasters
@@ -489,3 +493,13 @@ corrplot(cor_matrix_sdm,
          mar = c(0, 0, 2, 0),                  # Adjust margins for the title
          diag = FALSE                          # Do not show the diagonal
 )
+
+
+r <- rasterize(bio19)  # For terra (use raster() if using the raster package)
+
+# Multiply by the factor
+factor <- 3600 * 24 * 91.3 * 1000
+bio19_new <- bio19 * factor
+
+# Save the modified raster
+writeRaster(bio19_new, "Layer/bio19_per3months.tif", overwrite=TRUE)
