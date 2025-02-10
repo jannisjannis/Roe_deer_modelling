@@ -12,7 +12,7 @@
 #install.packages("nnet")
 #install.packages("mgcv")
 #install.packages("gbm")
-install.packages("gam")
+#install.packages("gam")
 
 
 setwd("C:/Users/Jannis/OneDrive - Scientific Network South Tyrol/Documents/Master - EMMA/3. Semester/Southtyrol-hunting data")
@@ -101,6 +101,12 @@ grassland_cover <- project(grassland_cover, target_crs)
 clc_cover <- project(clc_1234, target_crs)
 crs(heat_map)
 
+#change aspect into southness and eastness
+aspect_rad <- aspect * (pi / 180)
+
+southness <- cos(aspect_rad)
+eastness <- sin(aspect_rad)
+
 #### Match resolutions of the layers ####
 #we start with downscaling the climate variables from 1km2 to 100m2
 target_res <- 100
@@ -108,6 +114,7 @@ template_raster <- rast(dem)  # Copy extent and CRS from the reference raster (d
 res(template_raster) <- target_res  # Ensure resolution is set to 100x100 meters
 
 # Step 3: Resample bio1 to match the template raster
+bio12_mm_per_year <- rast("Layer/bio12_mm_per_year.tif")
 bio1_100m <- resample(bio1, template_raster, method = "bilinear")
 bio2_100m <- resample(bio2, template_raster, method = "bilinear")
 bio11_100m <- resample(bio11, template_raster, method = "bilinear")
@@ -127,7 +134,8 @@ grassland_cover_100m_aligned <- resample(grassland_cover_100m, template_raster, 
 border_southtyrol <- vect("Layer/border_southTyrol_withoutNP.shp")
 
 dem_crop <- mask(crop (dem, border_southtyrol), border_southtyrol)
-aspect_crop <- mask(crop(aspect, border_southtyrol), border_southtyrol)
+southness_crop <- mask(crop(southness, border_southtyrol), border_southtyrol)
+eastness_crop <- mask(crop(eastness, border_southtyrol), border_southtyrol)
 slope_crop <- mask(crop(slope, border_southtyrol), border_southtyrol)
 bio1_crop <- mask(crop(bio1_100m, border_southtyrol), border_southtyrol)
 bio2_crop <- mask(crop(bio2_100m, border_southtyrol), border_southtyrol)
@@ -139,12 +147,14 @@ grassland_cover_crop <- mask(crop(grassland_cover_100m_aligned, border_southtyro
 heat_map_crop <- mask(crop(heat_map_100m, border_southtyrol), border_southtyrol)
 clc_crop <- mask(crop(clc_100m, border_southtyrol), border_southtyrol)
 
+bio12_mm_per_year_crop <- mask(crop(bio12_mm_per_year, border_southtyrol), border_southtyrol)
 # due to the realignment the raster it not binary anymore. we make it binary again with values < 0.3 are 0
 clc_crop_binary <- ifel(clc_crop < 0.5, 0, 1)
 
 #### Save aligned rasters ####
 writeRaster(dem_crop, "aligned_rasters/dem_100m.tif", overwrite = TRUE)
-writeRaster(aspect_crop, "aligned_rasters/aspect_100m.tif", overwrite = TRUE)
+writeRaster(southness_crop, "aligned_rasters/southness_100m.tif", overwrite = TRUE)
+writeRaster(eastness_crop, "aligned_rasters/eastness_100m.tif", overwrite = TRUE)
 writeRaster(slope_crop, "aligned_rasters/slope_100m.tif", overwrite = TRUE)
 writeRaster(bio1_crop, "aligned_rasters/bio1_100m.tif", overwrite = TRUE)
 writeRaster(bio2_crop, "aligned_rasters/bio2_100m.tif", overwrite = TRUE)
@@ -156,9 +166,12 @@ writeRaster(grassland_cover_crop, "aligned_rasters/grassland_cover_100m.tif", ov
 writeRaster(heat_map_crop, "aligned_rasters/heat_map_100m.tif", overwrite = TRUE)
 writeRaster(clc_crop_binary, "aligned_rasters/clc_binary_100m.tif", overwrite = TRUE)
 
+writeRaster(bio12_mm_per_year_crop, "aligned_rasters/bio12_mm_per_year_crop.tif", overwrite = TRUE)
+
 #### Read in Aligned rasters ####
 dem <- rast("aligned_rasters/dem_100m.tif")
-aspect <- rast("aligned_rasters/aspect_100m.tif")
+southness <- rast("aligned_rasters/southness_100m.tif")
+eastness <- rast("aligned_rasters/eastness_100m.tif")
 slope <- rast("aligned_rasters/slope_100m.tif")
 bio1 <-rast("aligned_rasters/bio1_100m.tif")
 #bio2 <-rast("aligned_rasters/bio2_100m.tif")
@@ -171,17 +184,17 @@ heat_map <- rast("aligned_rasters/heat_map_100m.tif")
 human_settlement <- rast("aligned_rasters/clc_binary_100m.tif")
 
 #### Test for correlation ####
-env_stack <- c(dem, aspect, slope, bio1, bio11, bio12, bio19, forest_cover, grassland_cover, heat_map, human_settlement)
+env_stack <- c(dem, eastness, southness, slope, bio1, bio11, bio12, bio19, forest_cover, grassland_cover, human_settlement)
 
 env_values <- as.data.frame(env_stack, na.rm = TRUE) #extract values from rasters
 colors <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA")) #define colorpalette
 colnames(env_values) <- c(
-  "DEM", "Aspect", "Slope", "Bio1", "Bio11", "Bio12", "Bio19", 
-  "ForestCover", "GrasslandCover", "HeatMap", "HumanSettlement")
+  "DEM", "Eastness", "Southness", "Slope", "Bio1", "Bio11", "Bio12", "Bio19", 
+  "ForestCover", "GrasslandCover", "HumanSettlement")
 
 #Col names with correlated parameters removed
 colnames(env_values) <- c(
-  "Aspect", "Slope", "Bio11", "Bio12",
+  "Eastness",  "Southness", "Slope", "Bio11", "Bio12",
   "ForestCover", "GrasslandCover", "HeatMap", "HumanSettlement")
 
 cor_matrix <- cor(env_values, method = "spearman")
@@ -257,12 +270,12 @@ colnames(presence_data_biomod)[colnames(presence_data_biomod) == "X_25832"] <- "
 #erstelle random subset von 5.000 punkten
 set.seed(245) 
 presence_data_biomod_subset_5000 <- presence_data_biomod[sample(nrow(presence_data_biomod), 5000), ]
-export(presence_data_biomod_subset_5000, "presence_data_biomod_subset_5000.csv", overwrite = TRUE)
+#export(presence_data_biomod_subset_5000, "presence_data_biomod_subset_5000.csv", overwrite = TRUE)
 
 #random subset with 10.000 points
 set.seed(513) 
 presence_data_biomod_subset_10000 <- presence_data_biomod[sample(nrow(presence_data_biomod), 10000), ]
-export(presence_data_biomod_subset_10000, "presence_data_biomod_subset_10000.csv", overwrite = TRUE)
+#export(presence_data_biomod_subset_10000, "presence_data_biomod_subset_10000.csv", overwrite = TRUE)
 
 
 #### Format data and generate pseudo-absences SRE 5000 points ####
@@ -461,7 +474,7 @@ biomod_projection <- BIOMOD_Projection(
   bm.mod = biomod_model_sre5000,
   new.env = env_stack,        # Your environmental variable stack
   proj.name = "species_projection",
-  selected.models = c("Roe.deer_PA1_Run1_RF"),    # You can specify models, e.g., RF or GLM
+  selected.models = c("Roe.deer_PA1_Run3_RF"),    # You can specify models, e.g., RF or GLM
   binary.meth = "TSS",        # Use a binary method based on TSS or ROC
   compress = FALSE,
   clamping.mask = FALSE,
@@ -470,8 +483,8 @@ biomod_projection <- BIOMOD_Projection(
     
 proj_files <- get_predictions(biomod_projection)
 names(proj_files)
-rf_projection <- proj_files[["Roe.deer_PA1_RUN1_RF"]]
-writeRaster(rf_projection, filename = "species_distribution_sre_5000_pa1_run1_final.tif", overwrite = TRUE)
+rf_projection <- proj_files[["Roe.deer_PA1_RUN3_RF"]]
+writeRaster(rf_projection, filename = "species_distribution_sre_5000_pa1_run3_final.tif", overwrite = TRUE)
 
 # Corellation Heat_map and final model
 corr_den_sdm <- as.data.frame(c(rf_projection, heat_map), na.rm = TRUE) #extract values from rasters
@@ -489,3 +502,13 @@ corrplot(cor_matrix_sdm,
          mar = c(0, 0, 2, 0),                  # Adjust margins for the title
          diag = FALSE                          # Do not show the diagonal
 )
+
+
+r <- rasterize(bio19)  # For terra (use raster() if using the raster package)
+
+# Multiply by the factor
+factor <- 3600 * 24 * 91.3 * 1000
+bio19_new <- bio19 * factor
+
+# Save the modified raster
+writeRaster(bio19_new, "Layer/bio19_per3months.tif", overwrite=TRUE)
